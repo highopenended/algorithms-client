@@ -26,21 +26,17 @@ function App() {
       {/* Desktop Layout */}
       {!isMobile && (
         <div className="flex h-full">
-          <div className="w-64 flex-shrink-0">
-            <AlgoList 
-              algoNames={listOfAlgos}
-              selectedAlgo={selectedAlgo}
-              onSelectAlgo={setSelectedAlgo}
-              isMobileView={false}
-              onToggleMobileView={() => {}}
-            />
-          </div>
-          <div className="flex-1">
-            <InteractionZone 
-              selectedAlgo={selectedAlgo}
-              onToggleMobileView={() => {}}
-            />
-          </div>
+          <AlgoList 
+            algoNames={listOfAlgos}
+            selectedAlgo={selectedAlgo}
+            onSelectAlgo={setSelectedAlgo}
+            isMobile={false}
+          />
+          <InteractionZone 
+            selectedAlgo={selectedAlgo}
+            onToggleMobileView={() => {}}
+            isMobile={false}
+          />
         </div>
       )}
 
@@ -54,8 +50,7 @@ function App() {
               setSelectedAlgo(algo);
               setIsMobileView(true);
             }}
-            isMobileView={isMobileView}
-            onToggleMobileView={() => setIsMobileView(false)}
+            isMobile={true}
           />
           <InteractionZone 
             selectedAlgo={selectedAlgo}
@@ -63,6 +58,7 @@ function App() {
               setSelectedAlgo(null);
               setIsMobileView(false);
             }}
+            isMobile={true}
           />
         </>
       )}
