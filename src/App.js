@@ -22,22 +22,50 @@ function App() {
   const listOfAlgos = ['Bubble Sort', 'Quick Sort', 'Merge Sort', 'Binary Search'];
 
   return (
-    <div className="h-screen w-screen overflow-hidden">
-      <div className="flex h-full">
-        <AlgoList 
-          algoNames={listOfAlgos}
-          selectedAlgo={selectedAlgo}
-          onSelectAlgo={(algo) => {
-            setSelectedAlgo(algo);
-            if (isMobile) {
+    <div className="relative h-screen w-screen overflow-hidden">
+      {/* Desktop Layout */}
+      {!isMobile && (
+        <div className="flex h-full">
+          <div className="w-64 flex-shrink-0">
+            <AlgoList 
+              algoNames={listOfAlgos}
+              selectedAlgo={selectedAlgo}
+              onSelectAlgo={setSelectedAlgo}
+              isMobileView={false}
+              onToggleMobileView={() => {}}
+            />
+          </div>
+          <div className="flex-1">
+            <InteractionZone 
+              selectedAlgo={selectedAlgo}
+              onToggleMobileView={() => {}}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Layout */}
+      {isMobile && (
+        <>
+          <AlgoList 
+            algoNames={listOfAlgos}
+            selectedAlgo={selectedAlgo}
+            onSelectAlgo={(algo) => {
+              setSelectedAlgo(algo);
+              setIsMobileView(true);
+            }}
+            isMobileView={isMobileView}
+            onToggleMobileView={() => setIsMobileView(false)}
+          />
+          <InteractionZone 
+            selectedAlgo={selectedAlgo}
+            onToggleMobileView={() => {
+              setSelectedAlgo(null);
               setIsMobileView(false);
-            }
-          }}
-          isMobileView={isMobile}
-          onToggleMobileView={() => setIsMobileView(!isMobileView)}
-        />
-        <InteractionZone selectedAlgo={selectedAlgo} />
-      </div>
+            }}
+          />
+        </>
+      )}
     </div>
   );
 }
