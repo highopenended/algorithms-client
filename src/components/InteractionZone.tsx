@@ -6,15 +6,11 @@ type InteractionZoneProps = {
 
 const InteractionZone = ({ selectedAlgo }: InteractionZoneProps) => {
     return (
-        <div className="flex-1 bg-white p-4">
+        <div className="flex-1 bg-gray-100 p-4 overflow-auto">
             {selectedAlgo ? (
-                <div className="h-full flex items-center justify-center">
-                    <p className="text-gray-500">Visualization for {selectedAlgo} will appear here</p>
-                </div>
+                <h2 className="text-xl font-bold mb-4">{selectedAlgo}</h2>
             ) : (
-                <div className="h-full flex items-center justify-center">
-                    <p className="text-gray-500">Select an algorithm to begin</p>
-                </div>
+                <p className="text-gray-500">Select an algorithm to begin</p>
             )}
         </div>
     );

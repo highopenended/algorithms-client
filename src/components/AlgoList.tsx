@@ -17,13 +17,14 @@ const AlgoList = ({
 }: AlgoListProps) => {
     return (
         <div className={`
-            ${isMobileView ? 'fixed inset-y-0 left-0 z-50' : 'relative'}
-            bg-gray-100 min-w-[200px] max-w-[33vw] h-full
-            transition-transform duration-300 ease-in-out
-            ${isMobileView && !selectedAlgo ? 'translate-x-0' : '-translate-x-full'}
+            ${isMobileView 
+                ? `fixed inset-0 z-50 w-full transform transition-transform duration-300 ease-in-out
+                   ${selectedAlgo ? '-translate-x-full' : 'translate-x-0'}`
+                : 'flex-none w-fit min-w-[200px] max-w-[33vw]'}
+            bg-gray-100 h-full
         `}>
-            {/* Mobile drag handle */}
-            {isMobileView && (
+            {/* Mobile drag handle - only show when panel is hidden */}
+            {isMobileView && selectedAlgo && (
                 <div 
                     className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-20 bg-gray-300 rounded-r cursor-pointer"
                     onClick={onToggleMobileView}
@@ -37,7 +38,7 @@ const AlgoList = ({
                         <div 
                             key={algoName}
                             className={`
-                                p-2 rounded cursor-pointer
+                                p-2 rounded cursor-pointer whitespace-nowrap
                                 ${selectedAlgo === algoName ? 'bg-blue-500 text-white' : 'hover:bg-gray-200'}
                             `}
                             onClick={() => onSelectAlgo(algoName)}

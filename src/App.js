@@ -13,6 +13,7 @@ function App() {
       setWindowWidth(width);
       setIsMobileView(width < 768);
     };
+    handleResize(); // Call on initial render
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -22,36 +23,21 @@ function App() {
 
   return (
     <div className="h-screen w-screen overflow-hidden">
-      {!isMobile ? (
-        // Desktop Layout
-        <div className="flex h-full">
-          <p>Desktop: {windowWidth}</p>
-          <AlgoList 
-            algoNames={listOfAlgos}
-            selectedAlgo={selectedAlgo}
-            onSelectAlgo={setSelectedAlgo}
-            isMobileView={false}
-            onToggleMobileView={() => {}}
-          />
-          <InteractionZone selectedAlgo={selectedAlgo} />
-        </div>
-      ) : (
-        // Mobile Layout
-        <div className="flex h-full relative">
-          <p>Mobile: {windowWidth}</p>
-          <AlgoList 
-            algoNames={listOfAlgos}
-            selectedAlgo={selectedAlgo}
-            onSelectAlgo={(algo) => {
-              setSelectedAlgo(algo);
+      <div className="flex h-full">
+        <AlgoList 
+          algoNames={listOfAlgos}
+          selectedAlgo={selectedAlgo}
+          onSelectAlgo={(algo) => {
+            setSelectedAlgo(algo);
+            if (isMobile) {
               setIsMobileView(false);
-            }}
-            isMobileView={true}
-            onToggleMobileView={() => setIsMobileView(!isMobileView)}
-          />
-          <InteractionZone selectedAlgo={selectedAlgo} />
-        </div>
-      )}
+            }
+          }}
+          isMobileView={isMobile}
+          onToggleMobileView={() => setIsMobileView(!isMobileView)}
+        />
+        <InteractionZone selectedAlgo={selectedAlgo} />
+      </div>
     </div>
   );
 }
