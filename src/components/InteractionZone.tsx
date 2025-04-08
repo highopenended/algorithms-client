@@ -1,15 +1,22 @@
 import React, { useState } from "react";
 import { motion, useMotionValue } from "framer-motion";
+import { AlgoComponent } from "../types/algo.types";
 
 type InteractionZoneProps = {
-    selectedAlgo: string | null;
+    selectedAlgo: AlgoComponent | null;
     onToggleMobileView: () => void;
     isMobile?: boolean;
     checkMobileView: () => void;
     screenWidth: number;
 };
 
-const InteractionZone = ({ selectedAlgo, onToggleMobileView, isMobile = false, checkMobileView, screenWidth }: InteractionZoneProps) => {
+const InteractionZone = ({
+    selectedAlgo,
+    onToggleMobileView,
+    isMobile = false,
+    checkMobileView,
+    screenWidth,
+}: InteractionZoneProps) => {
     const x = useMotionValue(0);
     const [isDragging, setIsDragging] = useState(false);
 
@@ -21,10 +28,14 @@ const InteractionZone = ({ selectedAlgo, onToggleMobileView, isMobile = false, c
         return (
             <div className={`${baseClasses} ${desktopClasses}`}>
                 <div className="p-4">
-                    {selectedAlgo 
-                        ? <h2 className="text-xl font-bold mb-4">{selectedAlgo}</h2>
-                        : <p className="text-gray-500">Select an algorithm to begin</p>
-                    }
+                    {selectedAlgo ? (
+                        <>
+                            <h2 className="text-xl font-bold mb-4">{selectedAlgo.name}</h2>
+                            <selectedAlgo.component />
+                        </>
+                    ) : (
+                        <p className="text-gray-500">Select an algorithm to begin</p>
+                    )}
                 </div>
             </div>
         );
@@ -60,7 +71,7 @@ const InteractionZone = ({ selectedAlgo, onToggleMobileView, isMobile = false, c
             }}
         >
             {/* Drawer handle */}
-            <div 
+            <div
                 className={`
                     absolute left-0 top-1/2 -translate-y-1/2 
                     w-2 h-24 bg-gray-300 rounded-r 
@@ -71,10 +82,14 @@ const InteractionZone = ({ selectedAlgo, onToggleMobileView, isMobile = false, c
             />
 
             <div className="p-4">
-                {selectedAlgo 
-                    ? <h2 className="text-xl font-bold mb-4">{selectedAlgo}</h2>
-                    : <p className="text-gray-500">Select an algorithm to begin</p>
-                }
+                {selectedAlgo ? (
+                    <>
+                        <h2 className="text-xl font-bold mb-4">{selectedAlgo.name}</h2>
+                        <selectedAlgo.component />
+                    </>
+                ) : (
+                    <p className="text-gray-500">Select an algorithm to begin</p>
+                )}
             </div>
         </motion.div>
     );

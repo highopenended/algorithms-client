@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import AlgoList from './components/AlgoList.tsx';
 import InteractionZone from './components/InteractionZone.tsx';
-import { algoRegistry } from './components/algo-demos/index.ts';
+import { algoRegistry } from './components/algo-demos/_index.ts';
 
 function App() {
   const [selectedAlgo, setSelectedAlgo] = useState(null);
@@ -20,7 +20,6 @@ function App() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const listOfAlgos = algoRegistry.map(algo => algo.name);
 
   return (
     <div className="relative h-screen w-screen overflow-hidden">
@@ -28,7 +27,7 @@ function App() {
       {!isMobileView && (
         <div className="flex h-full">
           <AlgoList 
-            algoNames={listOfAlgos}
+            algoRegistry={algoRegistry}
             selectedAlgo={selectedAlgo}
             onSelectAlgo={setSelectedAlgo}
             isMobile={false}
@@ -47,7 +46,7 @@ function App() {
       {isMobileView && (
         <>
           <AlgoList 
-            algoNames={listOfAlgos}
+            algoRegistry={algoRegistry}
             selectedAlgo={selectedAlgo}
             onSelectAlgo={(algo) => {
               setSelectedAlgo(algo);
