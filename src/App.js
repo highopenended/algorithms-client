@@ -1,30 +1,31 @@
 import { useEffect, useState } from 'react';
 import AlgoList from './components/AlgoList.tsx';
 import InteractionZone from './components/InteractionZone.tsx';
+import { algoRegistry } from './components/algo-demos/index.ts';
 
 function App() {
   const [selectedAlgo, setSelectedAlgo] = useState(null);
-  const [isMobileView, setIsMobileView] = useState(false);
-  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const [screenWidth, setScreenWidth] = useState(window.innerWidth);
+
+  const isMobileView = screenWidth < 768;
+
+  const checkMobileView = () => {
+    const currentWidth = window.innerWidth;
+    setScreenWidth(currentWidth);
+  };
 
   useEffect(() => {
-    const handleResize = () => {
-      const width = window.innerWidth;
-      setWindowWidth(width);
-      setIsMobileView(width < 768);
-    };
-    handleResize(); // Call on initial render
+    const handleResize = () => setScreenWidth(window.innerWidth);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const isMobile = windowWidth < 768; // Tailwind's md breakpoint
-  const listOfAlgos = ['Bubble Sort', 'Quick Sort', 'Merge Sort', 'Binary Search'];
+  const listOfAlgos = algoRegistry.map(algo => algo.name);
 
   return (
     <div className="relative h-screen w-screen overflow-hidden">
       {/* Desktop Layout */}
-      {!isMobile && (
+      {!isMobileView && (
         <div className="flex h-full">
           <AlgoList 
             algoNames={listOfAlgos}
@@ -36,19 +37,20 @@ function App() {
             selectedAlgo={selectedAlgo}
             onToggleMobileView={() => {}}
             isMobile={false}
+            checkMobileView={checkMobileView}
+            screenWidth={screenWidth}
           />
         </div>
       )}
 
       {/* Mobile Layout */}
-      {isMobile && (
+      {isMobileView && (
         <>
           <AlgoList 
             algoNames={listOfAlgos}
             selectedAlgo={selectedAlgo}
             onSelectAlgo={(algo) => {
               setSelectedAlgo(algo);
-              setIsMobileView(true);
             }}
             isMobile={true}
           />
@@ -56,9 +58,10 @@ function App() {
             selectedAlgo={selectedAlgo}
             onToggleMobileView={() => {
               setSelectedAlgo(null);
-              setIsMobileView(false);
             }}
             isMobile={true}
+            checkMobileView={checkMobileView}
+            screenWidth={screenWidth}
           />
         </>
       )}
@@ -67,5 +70,3 @@ function App() {
 }
 
 export default App;
-
-

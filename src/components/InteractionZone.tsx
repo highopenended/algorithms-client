@@ -5,9 +5,11 @@ type InteractionZoneProps = {
     selectedAlgo: string | null;
     onToggleMobileView: () => void;
     isMobile?: boolean;
+    checkMobileView: () => void;
+    screenWidth: number;
 };
 
-const InteractionZone = ({ selectedAlgo, onToggleMobileView, isMobile = false }: InteractionZoneProps) => {
+const InteractionZone = ({ selectedAlgo, onToggleMobileView, isMobile = false, checkMobileView, screenWidth }: InteractionZoneProps) => {
     const x = useMotionValue(0);
     const [isDragging, setIsDragging] = useState(false);
 
@@ -42,21 +44,22 @@ const InteractionZone = ({ selectedAlgo, onToggleMobileView, isMobile = false }:
             }}
             drag="x"
             dragDirectionLock
-            dragConstraints={{ left: 0, right: window.innerWidth }}
+            dragConstraints={{ left: 0, right: screenWidth }}
             dragElastic={0}
             dragMomentum={false}
             onDragStart={() => setIsDragging(true)}
             onDragEnd={(event, info) => {
                 setIsDragging(false);
-                const threshold = window.innerWidth * 0.2;
+                const threshold = screenWidth * 0.2;
                 if (info.offset.x > threshold) {
+                    checkMobileView();
                     onToggleMobileView();
                 } else {
                     x.set(0);
                 }
             }}
         >
-            {/* Drawer handle - only show in mobile */}
+            {/* Drawer handle */}
             <div 
                 className={`
                     absolute left-0 top-1/2 -translate-y-1/2 
@@ -66,7 +69,7 @@ const InteractionZone = ({ selectedAlgo, onToggleMobileView, isMobile = false }:
                     ${isDragging ? "opacity-100" : "opacity-70 hover:opacity-100"}
                 `}
             />
-            
+
             <div className="p-4">
                 {selectedAlgo 
                     ? <h2 className="text-xl font-bold mb-4">{selectedAlgo}</h2>

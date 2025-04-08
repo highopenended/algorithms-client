@@ -1,5 +1,4 @@
 import React from "react";
-import { motion } from "framer-motion";
 
 type AlgoListProps = {
     algoNames: string[];
@@ -9,7 +8,7 @@ type AlgoListProps = {
 };
 
 const AlgoList = ({ algoNames, selectedAlgo, onSelectAlgo, isMobile = false }: AlgoListProps) => {
-    const baseClasses = "bg-gray-100";
+    const baseClasses = "bg-gray-100 border-r border-gray-300";
     const mobileClasses = "fixed inset-0 z-40";
     const desktopClasses = "h-full w-64 flex-shrink-0";
 
