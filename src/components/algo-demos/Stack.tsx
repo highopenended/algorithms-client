@@ -6,6 +6,122 @@ interface StackItem {
     value: string;
 }
 
+// Config constants
+const STACK_CONFIG = {
+    verticalSpacing: 20,
+    depthSpacing: 2,
+    pushOffsetY: "-1.875rem"
+};
+
+const ANIMATION = {
+    BASE_DURATION: 0.5,
+    PUSH: {
+        initial: {
+            backgroundColor: "rgba(255, 255, 255, 0)",
+            borderWidth: 0,
+            borderRadius: "0rem",
+            padding: "0rem",
+            boxShadow: "none",
+            width: "auto"
+        },
+        animate: {
+            backgroundColor: "rgba(255, 255, 255, 1)",
+            borderWidth: "0.125rem",
+            borderRadius: "0.5rem",
+            padding: "1rem",
+            boxShadow: "0 0.25rem 0.375rem -0.0625rem rgba(0, 0, 0, 0.1), 0 0.125rem 0.25rem -0.0625rem rgba(0, 0, 0, 0.06)",
+            width: "12rem"
+        }
+    },
+    POP: {
+        exit: {
+            x: [0, 100, 400],
+            opacity: [1, 1, 0],
+            transition: {
+                duration: 1.2,
+                ease: "easeInOut",
+                times: [0, 0.5, 1],
+                // Split behavior
+                x: {
+                    duration: 1.2,
+                    times: [0, 0.5, 1],
+                    ease: ["easeOut", "easeIn"]
+                },
+                opacity: {
+                    duration: 1.2,
+                    times: [0, 0.8, 1],
+                    ease: ["linear"]
+                }
+            }
+        }
+    },
+    PEEK: {
+        scale: 1.1,
+        y: "-1rem",
+        borderColor: "#2563EB",
+        boxShadow: "0 0 15px 5px rgba(37, 99, 235, 0.3)",
+        transition: { duration: 0.2, ease: "easeOut" }
+    },
+    DEFAULT: {
+        scale: 1,
+        y: 0,
+        borderColor: "#9CA3AF",
+        boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+        transition: { duration: 0.2, ease: "easeIn" }
+    }
+};
+
+const StackItemMotionWrapper = ({
+    item,
+    index,
+    stackLength,
+    animation,
+    exit,
+    children
+}: {
+    item: StackItem;
+    index: number;
+    stackLength: number;
+    animation: any;
+    exit?: any;
+    children?: React.ReactNode;
+}) => (
+    <motion.div
+        initial={false}
+        animate={{ opacity: 1, scale: 1, y: (stackLength - index) * STACK_CONFIG.verticalSpacing }}
+        exit={exit}
+        className="absolute bottom-0 w-full"
+        style={{ zIndex: index }}
+    >
+        <motion.div
+            animate={animation}
+            className="h-16 w-full bg-white border-2 rounded-lg flex items-center justify-center transform-gpu preserve-3d"
+            style={{ transform: `translateZ(${index * STACK_CONFIG.depthSpacing}px)` }}
+        >
+            <span className="text-gray-700">{children || item.value}</span>
+        </motion.div>
+    </motion.div>
+);
+
+const PushingAnimation = ({ position, value, zIndex }: { position: { x: number; y: number }; value: string; zIndex: number }) => (
+    <motion.div
+        initial={{ x: position.x, y: position.y, scale: 1, opacity: 1, ...ANIMATION.PUSH.initial }}
+        animate={{ x: 0, y: STACK_CONFIG.pushOffsetY, zIndex, scale: 1, opacity: 1, ...ANIMATION.PUSH.animate }}
+        transition={{
+            duration: ANIMATION.BASE_DURATION,
+            backgroundColor: { delay: 0, duration: ANIMATION.BASE_DURATION * 0.4 },
+            borderWidth: { delay: 0, duration: ANIMATION.BASE_DURATION },
+            borderRadius: { delay: 0, duration: ANIMATION.BASE_DURATION },
+            padding: { delay: 0, duration: ANIMATION.BASE_DURATION },
+            boxShadow: { delay: 0, duration: ANIMATION.BASE_DURATION },
+            width: { delay: 0, duration: ANIMATION.BASE_DURATION }
+        }}
+        className="absolute z-10 border-gray-400 flex items-center justify-center"
+    >
+        <span className="text-gray-700">{value}</span>
+    </motion.div>
+);
+
 export function Stack() {
     const [stack, setStack] = useState<StackItem[]>([]);
     const [inputValue, setInputValue] = useState("");
@@ -13,44 +129,35 @@ export function Stack() {
     const [nextId, setNextId] = useState(0);
     const [isAnimatingPush, setIsAnimatingPush] = useState(false);
     const [isAnimatingPop, setIsAnimatingPop] = useState(false);
+    const [poppingItem, setPoppingItem] = useState<StackItem | null>(null);
     const [pushingValue, setPushingValue] = useState("");
     const inputRef = useRef<HTMLInputElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
-    // Base animation duration in seconds
-    const BASE_DURATION = .5;
-
     const handlePush = () => {
         if (!inputValue.trim() || isAnimatingPush) return;
-        
-        const newItem = {
-            id: nextId,
-            value: inputValue.trim()
-        };
-
+        const newItem = { id: nextId, value: inputValue.trim() };
         setPushingValue(inputValue.trim());
         setIsAnimatingPush(true);
         setInputValue("");
-        
         setTimeout(() => {
             setStack([...stack, newItem]);
             setNextId(nextId + 1);
             setIsAnimatingPush(false);
             setPushingValue("");
-        }, BASE_DURATION * 1000);
+        }, ANIMATION.BASE_DURATION * 1000);
     };
 
     const handlePop = () => {
         if (stack.length === 0 || isAnimatingPop) return;
-        
+        const itemToPop = stack[stack.length - 1];
+        setPoppingItem(itemToPop);
         setIsAnimatingPop(true);
-        const newStack = [...stack];
-        const popped = newStack.pop();
-        
         setTimeout(() => {
-            if (popped) setStack(newStack);
+            setStack(stack.slice(0, -1));
             setIsAnimatingPop(false);
-        }, 200); // Quick pop animation
+            setPoppingItem(null);
+        }, ANIMATION.BASE_DURATION * 1000);
     };
 
     const handlePeek = () => {
@@ -59,17 +166,13 @@ export function Stack() {
         setTimeout(() => setPeekingIndex(null), 1000);
     };
 
-    // Calculate input field position for animation start point
     const getInputPosition = () => {
         if (!inputRef.current || !containerRef.current) return { x: 0, y: 0 };
-        
         const inputRect = inputRef.current.getBoundingClientRect();
         const containerRect = containerRef.current.getBoundingClientRect();
-        
-        // Calculate center position relative to the container
         return {
-            x: inputRect.left - containerRect.left + (inputRect.width / 2) - (containerRect.width / 2),
-            y: inputRect.top - containerRect.top - (containerRect.height / 2) + (inputRect.height / 2)
+            x: inputRect.left - containerRect.left + (inputRect.width - containerRect.width) / 2,
+            y: inputRect.top - containerRect.top + (inputRect.height - containerRect.height) / 2
         };
     };
 
@@ -110,143 +213,54 @@ export function Stack() {
 
             <div ref={containerRef} className="relative w-full max-w-md h-[400px] flex items-center justify-center">
                 {isAnimatingPush && (
-                    <motion.div
-                        initial={{ 
-                            x: getInputPosition().x,
-                            y: getInputPosition().y,
-                            scale: 1,
-                            opacity: 1,
-                            backgroundColor: "rgba(255, 255, 255, 0)",
-                            borderWidth: 0,
-                            borderRadius: "0rem",
-                            padding: "0rem",
-                            boxShadow: "none",
-                            width: "auto"
-                        }}
-                        animate={{ 
-                            x: 0,
-                            y: "-1.875rem",
-                            zIndex: stack.length+1,
-                            scale: 1,
-                            opacity: 1,
-                            backgroundColor: "rgba(255, 255, 255, 1)",
-                            borderWidth: "0.125rem",
-                            borderRadius: "0.5rem",
-                            padding: "1rem",
-                            boxShadow: "0 0.25rem 0.375rem -0.0625rem rgba(0, 0, 0, 0.1), 0 0.125rem 0.25rem -0.0625rem rgba(0, 0, 0, 0.06)",
-                            width: "12rem"
-                        }}
-                        transition={{
-                            duration: BASE_DURATION,
-                            backgroundColor: { delay: 0, duration: BASE_DURATION * 0.4 },
-                            borderWidth: { delay: 0, duration: BASE_DURATION },
-                            borderRadius: { delay: 0, duration: BASE_DURATION },
-                            padding: { delay: 0, duration: BASE_DURATION },
-                            boxShadow: { delay: 0, duration: BASE_DURATION },
-                            width: { delay: 0, duration: BASE_DURATION }
-                        }}
-                        className="absolute z-10 border-gray-400 flex items-center justify-center"
-                    >
-                        <span className="text-gray-700">{pushingValue}</span>
-                    </motion.div>
+                    <PushingAnimation
+                        position={getInputPosition()}
+                        value={pushingValue}
+                        zIndex={stack.length + 1}
+                    />
                 )}
 
                 <div className="relative w-48">
                     <AnimatePresence>
                         {stack.map((item, index) => {
                             const isTop = index === stack.length - 1;
+                            const isPopping = isTop && poppingItem?.id === item.id;
+                            const isPeeking = isTop && peekingIndex === index;
+                            const borderColor = isTop ? "#9CA3AF" : "#E5E7EB";
+
+                            if (isPopping) {
+                                return (
+                                    <StackItemMotionWrapper
+                                        key={item.id}
+                                        item={item}
+                                        index={index}
+                                        stackLength={stack.length}
+                                        animation={ANIMATION.DEFAULT}
+                                        exit={ANIMATION.POP.exit}
+                                    />
+                                );
+                            }
+                            if (isPeeking) {
+                                return (
+                                    <StackItemMotionWrapper
+                                        key={item.id}
+                                        item={item}
+                                        index={index}
+                                        stackLength={stack.length}
+                                        animation={ANIMATION.PEEK}
+                                    />
+                                );
+                            }
                             return (
-                                <motion.div
+                                <StackItemMotionWrapper
                                     key={item.id}
-                                    animate={{ 
-                                        opacity: 1,
-                                        scale: 1,
-                                        y: (stack.length - index) * 20
-                                    }}
-                                    exit={{ x: 200, opacity: 1 }}
-                                    className="absolute bottom-0 w-full"
-                                    style={{ zIndex: index }}
+                                    item={item}
+                                    index={index}
+                                    stackLength={stack.length}
+                                    animation={{ ...ANIMATION.DEFAULT, borderColor }}
                                 >
-                                    {/* Stack Item */}
-                                    <motion.div
-                                        animate={isTop && peekingIndex === index ? {
-                                            scale: 1.1,
-                                            y: "-1rem",
-                                            borderColor: "#2563EB",
-                                            boxShadow: "0 0 15px 5px rgba(37, 99, 235, 0.3)",
-                                            transition: { 
-                                                duration: 0.2,
-                                                ease: "easeOut"
-                                            }
-                                        } : {
-                                            scale: 1,
-                                            y: 0,
-                                            borderColor: isTop ? "#9CA3AF" : "#E5E7EB",
-                                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-                                            transition: {
-                                                duration: 0.2,
-                                                ease: "easeIn"
-                                            }
-                                        }}
-                                        className={`
-                                            h-16 w-full bg-white border-2
-                                            rounded-lg flex items-center justify-center
-                                            transform-gpu preserve-3d
-                                        `}
-                                        style={{
-                                            transform: `translateZ(${index * 2}px)`
-                                        }}
-                                    >
-                                        {/* Ellipses */}
-                                        <motion.span 
-                                            className="text-gray-700 absolute"
-                                            initial={{ scale: 1, opacity: 1 }}
-                                            animate={isTop && peekingIndex === index ? {
-                                                scale: 0.2,
-                                                opacity: 0
-                                            } : {
-                                                scale: 1,
-                                                opacity: 1
-                                            }}
-                                            transition={{
-                                                duration: 0.1,
-                                                ease: "easeInOut",
-                                                opacity: {
-                                                    delay: isTop && peekingIndex === index ? 0 : 0.1
-                                                },
-                                                scale: {
-                                                    delay: isTop && peekingIndex === index ? 0 : 0.1
-                                                }
-                                            }}
-                                        >
-                                            ...
-                                        </motion.span>
-                                        
-                                        {/* Value */}
-                                        <motion.span 
-                                            className="text-gray-700 absolute"
-                                            initial={{ scale: 0.5, opacity: 0 }}
-                                            animate={isTop && peekingIndex === index ? {
-                                                scale: [0.2, 1.2, 1],
-                                                opacity: [0, 1, 1],
-                                                transition: {
-                                                    duration: 0.4,
-                                                    times: [0, 0.2, 1],
-                                                    ease: "easeOut"
-                                                }
-                                            } : {
-                                                scale: 0.5,
-                                                opacity: 0,
-                                                transition: {
-                                                    duration: 0.2,
-                                                    ease: "easeIn"
-                                                }
-                                            }}
-                                        >
-                                            {item.value}
-                                        </motion.span>
-                                    </motion.div>
-                                </motion.div>
+                                    ...
+                                </StackItemMotionWrapper>
                             );
                         })}
                     </AnimatePresence>
