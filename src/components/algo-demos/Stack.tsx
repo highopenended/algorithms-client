@@ -61,8 +61,8 @@ const ANIMATION_CONFIG = {
             },
         },
         exit: {
-            y: 400,
-            x: 100,
+            y: 0,
+            x: 200,
             opacity: 0,
             borderColor: "#EF4444",
             transition: {
@@ -94,10 +94,23 @@ const ANIMATION_CONFIG = {
     PEEK: {
         baseDuration: 1,
         scale: 1.1,
-        y: "-1rem",
+        y: "-0.5rem",
+        x:"1rem",
         borderColor: "#2563EB",
         boxShadow: "0 0 15px 5px rgba(37, 99, 235, 0.3)",
         transition: { duration: 0.2, ease: "easeOut" },
+    },
+    RESET: {
+        baseDuration: 0.3,
+        totalDuration: 1.0, // Total time for the entire reset animation
+        exit: {
+            y: 400,
+            opacity: 0,
+            transition: {
+                duration: 0.5,
+                ease: "easeIn",
+            },
+        },
     },
     DEFAULT: {
         scale: 1,
@@ -174,11 +187,17 @@ export function Stack() {
     const [isAnimatingPush, setIsAnimatingPush] = useState(false);
     const [isAnimatingPop, setIsAnimatingPop] = useState(false);
     const [isAnimatingPeek, setIsAnimatingPeek] = useState(false);
+    const [isAnimatingReset, setIsAnimatingReset] = useState(false);
     const [poppingItem, setPoppingItem] = useState<StackItem | null>(null);
     const [pushingValue, setPushingValue] = useState("");
     const [recentlyPushedId, setRecentlyPushedId] = useState<number | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+
+    // Calculate delay per item for reset animation
+    const resetDelayPerItem = stack.length > 1 
+        ? (ANIMATION_CONFIG.RESET.totalDuration - ANIMATION_CONFIG.RESET.baseDuration) / (stack.length - 1)
+        : 0;
 
     // Focus input on component mount and whenever animations complete
     useEffect(() => {
@@ -224,9 +243,14 @@ export function Stack() {
     };
 
     const handleReset = () => {
-        if (stack.length === 0) return;
-        setStack([]);
-        inputRef.current?.focus();
+        if (stack.length === 0 || isAnimatingReset) return;
+        setIsAnimatingReset(true);
+        
+        setTimeout(() => {
+            setStack([]);
+            setIsAnimatingReset(false);
+            inputRef.current?.focus();
+        }, ANIMATION_CONFIG.RESET.totalDuration * 1000);
     };
 
     const handleFill = () => {
@@ -290,6 +314,11 @@ export function Stack() {
                     type="text"
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !isButtonDisabled("Push")) {
+                            handlePush();
+                        }
+                    }}
                     disabled={isAnimatingPush}
                     className="px-4 py-2 border rounded shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:bg-gray-100 text-center w-full sm:w-48"
                     placeholder="Enter value..."
@@ -322,7 +351,7 @@ export function Stack() {
                 <p>Stack Size: {stack.length}</p>
                 <button
                     onClick={handleReset}
-                    disabled={stack.length === 0}
+                    disabled={stack.length === 0 || isAnimatingReset}
                     className="px-3 py-1 bg-gray-500 text-white text-sm rounded shadow hover:bg-gray-600 transition-colors disabled:opacity-50"
                 >
                     Reset
@@ -348,6 +377,27 @@ export function Stack() {
                             const isPopping = isTop && poppingItem?.id === item.id;
                             const isPeeking = isTop && isAnimatingPeek;
                             const borderColor = isTop && !isAnimatingPush ? "#9CA3AF" : "#E5E7EB";
+
+                            if (isAnimatingReset) {
+                                return (
+                                    <StackItemMotionWrapper
+                                        key={item.id}
+                                        item={item}
+                                        index={index}
+                                        stackLength={stack.length}
+                                        animation={ANIMATION_CONFIG.DEFAULT}
+                                        exit={{
+                                            ...ANIMATION_CONFIG.RESET.exit,
+                                            transition: {
+                                                ...ANIMATION_CONFIG.RESET.exit.transition,
+                                                delay: index * resetDelayPerItem,
+                                            },
+                                        }}
+                                    >
+                                        {item.value}
+                                    </StackItemMotionWrapper>
+                                );
+                            }
 
                             if (isPopping) {
                                 return (
