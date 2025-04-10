@@ -101,11 +101,12 @@ const ANIMATION_CONFIG = {
         transition: { duration: 0.2, ease: "easeOut" },
     },
     RESET: {
-        baseDuration: 0.3,
-        totalDuration: 1.0, // Total time for the entire reset animation
+        totalDuration: 1, // Total time for the entire reset animation
+        initialDelay: 0, // Initial delay before animation starts
         exit: {
-            y: 400,
-            opacity: 0,
+            x: 0,
+            y: 1000,
+            rotate:45,
             transition: {
                 duration: 0.5,
                 ease: "easeIn",
@@ -196,7 +197,7 @@ export function Stack() {
 
     // Calculate delay per item for reset animation
     const resetDelayPerItem = stack.length > 1 
-        ? (ANIMATION_CONFIG.RESET.totalDuration - ANIMATION_CONFIG.RESET.baseDuration) / (stack.length - 1)
+        ? ANIMATION_CONFIG.RESET.totalDuration / (stack.length - 1)
         : 0;
 
     // Focus input on component mount and whenever animations complete
@@ -246,11 +247,12 @@ export function Stack() {
         if (stack.length === 0 || isAnimatingReset) return;
         setIsAnimatingReset(true);
         
+        // Clear the stack after the initial delay
         setTimeout(() => {
             setStack([]);
             setIsAnimatingReset(false);
             inputRef.current?.focus();
-        }, ANIMATION_CONFIG.RESET.totalDuration * 1000);
+        }, ANIMATION_CONFIG.RESET.initialDelay * 1000);
     };
 
     const handleFill = () => {
@@ -379,6 +381,8 @@ export function Stack() {
                             const borderColor = isTop && !isAnimatingPush ? "#9CA3AF" : "#E5E7EB";
 
                             if (isAnimatingReset) {
+                                const randomRotation = Math.random() * 60 - 30; // Random value between -30 and 30
+                                const randomXdrift = Math.random() * 50 - 25 // Random value between -25 and 25
                                 return (
                                     <StackItemMotionWrapper
                                         key={item.id}
@@ -388,6 +392,8 @@ export function Stack() {
                                         animation={ANIMATION_CONFIG.DEFAULT}
                                         exit={{
                                             ...ANIMATION_CONFIG.RESET.exit,
+                                            rotate: randomRotation,
+                                            x: randomXdrift,
                                             transition: {
                                                 ...ANIMATION_CONFIG.RESET.exit.transition,
                                                 delay: index * resetDelayPerItem,
