@@ -43,7 +43,7 @@ const ANIMATION_CONFIG = {
         },
     },
     POP: {
-        baseDuration: 0.8,
+        baseDuration: 0.5,
         initial: {
             y: 0,
             opacity: 1,
@@ -62,21 +62,27 @@ const ANIMATION_CONFIG = {
         },
         exit: {
             y: 400,
+            x: 100,
             opacity: 0,
             borderColor: "#EF4444",
             transition: {
                 duration: 1.2,
                 ease: "easeInOut",
                 times: [0, 0.2, 1],
+                x: {
+                    duration: 0.25,
+                    times: [0, 0.05, 0.8, 1],
+                    ease: ["easeOut"],
+                },
                 y: {
                     duration: 1.2,
                     times: [0, 0.2, 1],
                     ease: ["easeOut", "easeIn"],
                 },
                 opacity: {
-                    duration: 1.2,
-                    times: [0, 0.8, 1],
-                    ease: ["linear"],
+                    duration: 0.3,
+                    times: [0, 1],
+                    ease: "easeOut",
                 },
                 borderColor: {
                     duration: 1.2,
@@ -382,7 +388,7 @@ export function Stack() {
                                     stackLength={stack.length}
                                     animation={{ ...ANIMATION_CONFIG.DEFAULT, borderColor }}
                                 >
-                                    {item.id === recentlyPushedId ? item.value : item.value}
+                                    {item.id === recentlyPushedId ? item.value : "..."}
                                 </StackItemMotionWrapper>
                             );
                         })}
