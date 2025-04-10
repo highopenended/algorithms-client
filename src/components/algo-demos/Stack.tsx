@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface StackItem {
@@ -8,15 +8,22 @@ interface StackItem {
 
 // Config constants
 const STACK_CONFIG = {
-    verticalSpacing: 20,
+    verticalSpacing: 16,
     depthSpacing: 2,
-    pushOffsetY: "-1.875rem",
+    pushOffsetY: "-3rem",
+};
+
+const BUTTON_CONFIG = {
+    PUSH: { btnEnabled: { Push: false, Pop: false, Peek: false } },
+    POP: { btnEnabled: { Push: false, Pop: false, Peek: false } },
+    PEEK: { btnEnabled: { Push: false, Pop: true, Peek: false } },
+    RESET: { btnEnabled: { Push: true, Pop: true, Peek: true } },
 };
 
 // Animation constants
 const ANIMATION_CONFIG = {
-    BASE_DURATION: 0.5,
     PUSH: {
+        baseDuration: 0.4,
         initial: {
             backgroundColor: "rgba(255, 255, 255, 0)",
             borderWidth: 0,
@@ -32,10 +39,11 @@ const ANIMATION_CONFIG = {
             padding: "1rem",
             boxShadow:
                 "0 0.25rem 0.375rem -0.0625rem rgba(0, 0, 0, 0.1), 0 0.125rem 0.25rem -0.0625rem rgba(0, 0, 0, 0.06)",
-            width: "12rem",
+            width: "16rem",
         },
     },
     POP: {
+        baseDuration: 0.8,
         initial: {
             y: 0,
             opacity: 1,
@@ -73,11 +81,12 @@ const ANIMATION_CONFIG = {
                 borderColor: {
                     duration: 1.2,
                     times: [0, 0.2, 1],
-                }
+                },
             },
         },
     },
     PEEK: {
+        baseDuration: 1,
         scale: 1.1,
         y: "-1rem",
         borderColor: "#2563EB",
@@ -138,13 +147,13 @@ const PushingAnimation = ({
         initial={{ x: position.x, y: position.y, scale: 1, opacity: 1, ...ANIMATION_CONFIG.PUSH.initial }}
         animate={{ x: 0, y: STACK_CONFIG.pushOffsetY, zIndex, scale: 1, opacity: 1, ...ANIMATION_CONFIG.PUSH.animate }}
         transition={{
-            duration: ANIMATION_CONFIG.BASE_DURATION,
-            backgroundColor: { delay: 0, duration: ANIMATION_CONFIG.BASE_DURATION * 0.4 },
-            borderWidth: { delay: 0, duration: ANIMATION_CONFIG.BASE_DURATION },
-            borderRadius: { delay: 0, duration: ANIMATION_CONFIG.BASE_DURATION },
-            padding: { delay: 0, duration: ANIMATION_CONFIG.BASE_DURATION },
-            boxShadow: { delay: 0, duration: ANIMATION_CONFIG.BASE_DURATION },
-            width: { delay: 0, duration: ANIMATION_CONFIG.BASE_DURATION },
+            duration: ANIMATION_CONFIG.PUSH.baseDuration,
+            backgroundColor: { delay: 0, duration: ANIMATION_CONFIG.PUSH.baseDuration * 0.4 },
+            borderWidth: { delay: 0, duration: ANIMATION_CONFIG.PUSH.baseDuration },
+            borderRadius: { delay: 0, duration: ANIMATION_CONFIG.PUSH.baseDuration },
+            padding: { delay: 0, duration: ANIMATION_CONFIG.PUSH.baseDuration },
+            boxShadow: { delay: 0, duration: ANIMATION_CONFIG.PUSH.baseDuration },
+            width: { delay: 0, duration: ANIMATION_CONFIG.PUSH.baseDuration },
         }}
         className="absolute z-10 border-gray-400 flex items-center justify-center"
     >
@@ -155,15 +164,20 @@ const PushingAnimation = ({
 export function Stack() {
     const [stack, setStack] = useState<StackItem[]>([]);
     const [inputValue, setInputValue] = useState("");
-    const [peekingIndex, setPeekingIndex] = useState<number | null>(null);
     const [nextId, setNextId] = useState(0);
     const [isAnimatingPush, setIsAnimatingPush] = useState(false);
     const [isAnimatingPop, setIsAnimatingPop] = useState(false);
+    const [isAnimatingPeek, setIsAnimatingPeek] = useState(false);
     const [poppingItem, setPoppingItem] = useState<StackItem | null>(null);
     const [pushingValue, setPushingValue] = useState("");
     const [recentlyPushedId, setRecentlyPushedId] = useState<number | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+
+    // Focus input on component mount and whenever animations complete
+    useEffect(() => {
+        inputRef.current?.focus();
+    }, [isAnimatingPush, isAnimatingPop, isAnimatingPeek]);
 
     const handlePush = () => {
         if (!inputValue.trim() || isAnimatingPush) return;
@@ -177,11 +191,10 @@ export function Stack() {
             setIsAnimatingPush(false);
             setPushingValue("");
             setRecentlyPushedId(newItem.id);
-            // Clear the recently pushed id after a delay
             setTimeout(() => {
                 setRecentlyPushedId(null);
-            }, 500); // Show the number for 1 second after landing
-        }, ANIMATION_CONFIG.BASE_DURATION * 1000);
+            }, 500);
+        }, ANIMATION_CONFIG.PUSH.baseDuration * 1000);
     };
 
     const handlePop = () => {
@@ -193,13 +206,41 @@ export function Stack() {
             setStack(stack.slice(0, -1));
             setIsAnimatingPop(false);
             setPoppingItem(null);
-        }, 1200); // Match the animation duration
+        }, ANIMATION_CONFIG.POP.baseDuration * 1000);
     };
 
     const handlePeek = () => {
         if (stack.length === 0) return;
-        setPeekingIndex(stack.length - 1);
-        setTimeout(() => setPeekingIndex(null), 1000);
+        setIsAnimatingPeek(true);
+        setTimeout(() => {
+            setIsAnimatingPeek(false);
+        }, ANIMATION_CONFIG.PEEK.baseDuration * 1000);
+    };
+
+    const handleReset = () => {
+        if (stack.length === 0) return;
+        setStack([]);
+        inputRef.current?.focus();
+    };
+
+    const handleFill = () => {
+        if (isAnimatingPush || isAnimatingPop || isAnimatingPeek) return;
+        
+        // Generate 50 random values
+        const randomValues = Array.from({ length: 50 }, () => {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+            const length = Math.floor(Math.random() * 3) + 1; // 1-3 characters
+            return Array.from({ length }, () => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
+        });
+
+        // Create new stack items
+        const newItems = randomValues.map((value, index) => ({
+            id: nextId + index,
+            value
+        }));
+
+        setNextId(nextId + 50);
+        setStack(newItems);
     };
 
     const getInputPosition = () => {
@@ -212,55 +253,96 @@ export function Stack() {
         };
     };
 
+    const isButtonDisabled = (action: "Push" | "Pop" | "Peek") => {
+        const isAnimating = {
+            Push: isAnimatingPush,
+            Pop: isAnimatingPop,
+            Peek: isAnimatingPeek,
+        };
+
+        return (
+            (action === "Push" &&
+                (!inputValue.trim() || (isAnimating.Push && !BUTTON_CONFIG.PUSH.btnEnabled[action]))) ||
+            (action === "Pop" &&
+                (stack.length === 0 ||
+                    (isAnimating.Push && !BUTTON_CONFIG.PUSH.btnEnabled[action]) ||
+                    (isAnimating.Pop && !BUTTON_CONFIG.POP.btnEnabled[action]) ||
+                    (isAnimating.Peek && !BUTTON_CONFIG.PEEK.btnEnabled[action]))) ||
+            (action === "Peek" &&
+                (stack.length === 0 ||
+                    (isAnimating.Push && !BUTTON_CONFIG.PUSH.btnEnabled[action]) ||
+                    (isAnimating.Pop && !BUTTON_CONFIG.POP.btnEnabled[action]) ||
+                    (isAnimating.Peek && !BUTTON_CONFIG.PEEK.btnEnabled[action])))
+        );
+    };
+
     return (
         <div className="p-6 flex flex-col items-center">
-            <div className="flex gap-4 mb-8 items-center">
+            <div className="flex flex-col sm:flex-row gap-4 mb-8 items-center w-full max-w-lg">
                 <input
                     ref={inputRef}
                     type="text"
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     disabled={isAnimatingPush}
-                    className="px-4 py-2 border rounded shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:bg-gray-100 text-center w-48"
+                    className="px-4 py-2 border rounded shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:bg-gray-100 text-center w-full sm:w-48"
                     placeholder="Enter value..."
                 />
+                <div className="flex flex-wrap justify-center gap-2 w-full sm:w-auto">
+                    <button
+                        onClick={handlePush}
+                        disabled={isButtonDisabled("Push")}
+                        className="px-4 py-2 bg-green-500 text-white rounded shadow hover:bg-green-600 transition-colors disabled:opacity-50 flex-1 sm:flex-none min-w-[5rem]"
+                    >
+                        Push
+                    </button>
+                    <button
+                        onClick={handlePop}
+                        disabled={isButtonDisabled("Pop")}
+                        className="px-4 py-2 bg-red-500 text-white rounded shadow hover:bg-red-600 transition-colors disabled:opacity-50 flex-1 sm:flex-none min-w-[5rem]"
+                    >
+                        Pop
+                    </button>
+                    <button
+                        onClick={handlePeek}
+                        disabled={isButtonDisabled("Peek")}
+                        className="px-4 py-2 bg-blue-500 text-white rounded shadow hover:bg-blue-600 transition-colors disabled:opacity-50 flex-1 sm:flex-none min-w-[5rem]"
+                    >
+                        Peek
+                    </button>
+                </div>
+            </div>
+            <div className="mt-4 text-gray-600 flex items-center gap-4">
+                <p>Stack Size: {stack.length}</p>
                 <button
-                    onClick={handlePush}
-                    disabled={isAnimatingPush || !inputValue.trim()}
-                    className="px-4 py-2 bg-green-500 text-white rounded shadow hover:bg-green-600 transition-colors disabled:opacity-50"
+                    onClick={handleReset}
+                    disabled={stack.length === 0}
+                    className="px-3 py-1 bg-gray-500 text-white text-sm rounded shadow hover:bg-gray-600 transition-colors disabled:opacity-50"
                 >
-                    Push
+                    Reset
                 </button>
                 <button
-                    onClick={handlePop}
-                    disabled={stack.length === 0 || isAnimatingPush || isAnimatingPop}
-                    className="px-4 py-2 bg-red-500 text-white rounded shadow hover:bg-red-600 transition-colors disabled:opacity-50"
+                    onClick={handleFill}
+                    disabled={isAnimatingPush || isAnimatingPop || isAnimatingPeek}
+                    className="px-3 py-1 bg-purple-500 text-white text-sm rounded shadow hover:bg-purple-600 transition-colors disabled:opacity-50"
                 >
-                    Pop
-                </button>
-                <button
-                    onClick={handlePeek}
-                    disabled={stack.length === 0 || isAnimatingPush || isAnimatingPop || peekingIndex !== null}
-                    className="px-4 py-2 bg-blue-500 text-white rounded shadow hover:bg-blue-600 transition-colors disabled:opacity-50"
-                >
-                    Peek
+                    Fill
                 </button>
             </div>
 
-            <div ref={containerRef} className="relative w-full max-w-md h-[400px] flex items-center justify-center">
+            <div ref={containerRef} className="relative w-full max-w-md h-[400px] flex items-start justify-center pt-20">
                 {isAnimatingPush && (
                     <PushingAnimation position={getInputPosition()} value={pushingValue} zIndex={stack.length + 1} />
                 )}
 
-                <div className="relative w-48">
+                <div className="relative w-64">
                     <AnimatePresence>
                         {stack.map((item, index) => {
                             const isTop = index === stack.length - 1;
                             const isPopping = isTop && poppingItem?.id === item.id;
-                            const isPeeking = isTop && peekingIndex === index;
+                            const isPeeking = isTop && isAnimatingPeek;
                             const borderColor = isTop && !isAnimatingPush ? "#9CA3AF" : "#E5E7EB";
 
-                            // Popping animation
                             if (isPopping) {
                                 return (
                                     <StackItemMotionWrapper
@@ -285,7 +367,9 @@ export function Stack() {
                                         index={index}
                                         stackLength={stack.length}
                                         animation={ANIMATION_CONFIG.PEEK}
-                                    />
+                                    >
+                                        {item.value}
+                                    </StackItemMotionWrapper>
                                 );
                             }
 
@@ -298,16 +382,12 @@ export function Stack() {
                                     stackLength={stack.length}
                                     animation={{ ...ANIMATION_CONFIG.DEFAULT, borderColor }}
                                 >
-                                    {item.id === recentlyPushedId ? item.value : "..."}
+                                    {item.id === recentlyPushedId ? item.value : item.value}
                                 </StackItemMotionWrapper>
                             );
                         })}
                     </AnimatePresence>
                 </div>
-            </div>
-
-            <div className="mt-4 text-gray-600">
-                <p>Stack Size: {stack.length}</p>
             </div>
         </div>
     );
