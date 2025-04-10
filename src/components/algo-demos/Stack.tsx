@@ -10,10 +10,11 @@ interface StackItem {
 const STACK_CONFIG = {
     verticalSpacing: 20,
     depthSpacing: 2,
-    pushOffsetY: "-1.875rem"
+    pushOffsetY: "-1.875rem",
 };
 
-const ANIMATION = {
+// Animation constants
+const ANIMATION_CONFIG = {
     BASE_DURATION: 0.5,
     PUSH: {
         initial: {
@@ -22,53 +23,74 @@ const ANIMATION = {
             borderRadius: "0rem",
             padding: "0rem",
             boxShadow: "none",
-            width: "auto"
+            width: "auto",
         },
         animate: {
             backgroundColor: "rgba(255, 255, 255, 1)",
             borderWidth: "0.125rem",
             borderRadius: "0.5rem",
             padding: "1rem",
-            boxShadow: "0 0.25rem 0.375rem -0.0625rem rgba(0, 0, 0, 0.1), 0 0.125rem 0.25rem -0.0625rem rgba(0, 0, 0, 0.06)",
-            width: "12rem"
-        }
+            boxShadow:
+                "0 0.25rem 0.375rem -0.0625rem rgba(0, 0, 0, 0.1), 0 0.125rem 0.25rem -0.0625rem rgba(0, 0, 0, 0.06)",
+            width: "12rem",
+        },
     },
     POP: {
+        initial: {
+            y: 0,
+            opacity: 1,
+            borderColor: "#9CA3AF",
+        },
+        animate: {
+            x: 20,
+            y: -20,
+            opacity: 1,
+            borderColor: "#EF4444",
+            transition: {
+                duration: 0.2,
+                ease: "easeOut",
+                times: [0, 0.2, 1],
+            },
+        },
         exit: {
-            x: [0, 100, 400],
-            opacity: [1, 1, 0],
+            y: 400,
+            opacity: 0,
+            borderColor: "#EF4444",
             transition: {
                 duration: 1.2,
                 ease: "easeInOut",
-                times: [0, 0.5, 1],
-                // Split behavior
-                x: {
+                times: [0, 0.2, 1],
+                y: {
                     duration: 1.2,
-                    times: [0, 0.5, 1],
-                    ease: ["easeOut", "easeIn"]
+                    times: [0, 0.2, 1],
+                    ease: ["easeOut", "easeIn"],
                 },
                 opacity: {
                     duration: 1.2,
                     times: [0, 0.8, 1],
-                    ease: ["linear"]
+                    ease: ["linear"],
+                },
+                borderColor: {
+                    duration: 1.2,
+                    times: [0, 0.2, 1],
                 }
-            }
-        }
+            },
+        },
     },
     PEEK: {
         scale: 1.1,
         y: "-1rem",
         borderColor: "#2563EB",
         boxShadow: "0 0 15px 5px rgba(37, 99, 235, 0.3)",
-        transition: { duration: 0.2, ease: "easeOut" }
+        transition: { duration: 0.2, ease: "easeOut" },
     },
     DEFAULT: {
         scale: 1,
         y: 0,
         borderColor: "#9CA3AF",
         boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
-        transition: { duration: 0.2, ease: "easeIn" }
-    }
+        transition: { duration: 0.2, ease: "easeIn" },
+    },
 };
 
 const StackItemMotionWrapper = ({
@@ -77,7 +99,7 @@ const StackItemMotionWrapper = ({
     stackLength,
     animation,
     exit,
-    children
+    children,
 }: {
     item: StackItem;
     index: number;
@@ -103,18 +125,26 @@ const StackItemMotionWrapper = ({
     </motion.div>
 );
 
-const PushingAnimation = ({ position, value, zIndex }: { position: { x: number; y: number }; value: string; zIndex: number }) => (
+const PushingAnimation = ({
+    position,
+    value,
+    zIndex,
+}: {
+    position: { x: number; y: number };
+    value: string;
+    zIndex: number;
+}) => (
     <motion.div
-        initial={{ x: position.x, y: position.y, scale: 1, opacity: 1, ...ANIMATION.PUSH.initial }}
-        animate={{ x: 0, y: STACK_CONFIG.pushOffsetY, zIndex, scale: 1, opacity: 1, ...ANIMATION.PUSH.animate }}
+        initial={{ x: position.x, y: position.y, scale: 1, opacity: 1, ...ANIMATION_CONFIG.PUSH.initial }}
+        animate={{ x: 0, y: STACK_CONFIG.pushOffsetY, zIndex, scale: 1, opacity: 1, ...ANIMATION_CONFIG.PUSH.animate }}
         transition={{
-            duration: ANIMATION.BASE_DURATION,
-            backgroundColor: { delay: 0, duration: ANIMATION.BASE_DURATION * 0.4 },
-            borderWidth: { delay: 0, duration: ANIMATION.BASE_DURATION },
-            borderRadius: { delay: 0, duration: ANIMATION.BASE_DURATION },
-            padding: { delay: 0, duration: ANIMATION.BASE_DURATION },
-            boxShadow: { delay: 0, duration: ANIMATION.BASE_DURATION },
-            width: { delay: 0, duration: ANIMATION.BASE_DURATION }
+            duration: ANIMATION_CONFIG.BASE_DURATION,
+            backgroundColor: { delay: 0, duration: ANIMATION_CONFIG.BASE_DURATION * 0.4 },
+            borderWidth: { delay: 0, duration: ANIMATION_CONFIG.BASE_DURATION },
+            borderRadius: { delay: 0, duration: ANIMATION_CONFIG.BASE_DURATION },
+            padding: { delay: 0, duration: ANIMATION_CONFIG.BASE_DURATION },
+            boxShadow: { delay: 0, duration: ANIMATION_CONFIG.BASE_DURATION },
+            width: { delay: 0, duration: ANIMATION_CONFIG.BASE_DURATION },
         }}
         className="absolute z-10 border-gray-400 flex items-center justify-center"
     >
@@ -131,6 +161,7 @@ export function Stack() {
     const [isAnimatingPop, setIsAnimatingPop] = useState(false);
     const [poppingItem, setPoppingItem] = useState<StackItem | null>(null);
     const [pushingValue, setPushingValue] = useState("");
+    const [recentlyPushedId, setRecentlyPushedId] = useState<number | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -145,7 +176,12 @@ export function Stack() {
             setNextId(nextId + 1);
             setIsAnimatingPush(false);
             setPushingValue("");
-        }, ANIMATION.BASE_DURATION * 1000);
+            setRecentlyPushedId(newItem.id);
+            // Clear the recently pushed id after a delay
+            setTimeout(() => {
+                setRecentlyPushedId(null);
+            }, 500); // Show the number for 1 second after landing
+        }, ANIMATION_CONFIG.BASE_DURATION * 1000);
     };
 
     const handlePop = () => {
@@ -157,7 +193,7 @@ export function Stack() {
             setStack(stack.slice(0, -1));
             setIsAnimatingPop(false);
             setPoppingItem(null);
-        }, ANIMATION.BASE_DURATION * 1000);
+        }, 1200); // Match the animation duration
     };
 
     const handlePeek = () => {
@@ -172,7 +208,7 @@ export function Stack() {
         const containerRect = containerRef.current.getBoundingClientRect();
         return {
             x: inputRect.left - containerRect.left + (inputRect.width - containerRect.width) / 2,
-            y: inputRect.top - containerRect.top + (inputRect.height - containerRect.height) / 2
+            y: inputRect.top - containerRect.top + (inputRect.height - containerRect.height) / 2,
         };
     };
 
@@ -213,11 +249,7 @@ export function Stack() {
 
             <div ref={containerRef} className="relative w-full max-w-md h-[400px] flex items-center justify-center">
                 {isAnimatingPush && (
-                    <PushingAnimation
-                        position={getInputPosition()}
-                        value={pushingValue}
-                        zIndex={stack.length + 1}
-                    />
+                    <PushingAnimation position={getInputPosition()} value={pushingValue} zIndex={stack.length + 1} />
                 )}
 
                 <div className="relative w-48">
@@ -226,8 +258,9 @@ export function Stack() {
                             const isTop = index === stack.length - 1;
                             const isPopping = isTop && poppingItem?.id === item.id;
                             const isPeeking = isTop && peekingIndex === index;
-                            const borderColor = isTop ? "#9CA3AF" : "#E5E7EB";
+                            const borderColor = isTop && !isAnimatingPush ? "#9CA3AF" : "#E5E7EB";
 
+                            // Popping animation
                             if (isPopping) {
                                 return (
                                     <StackItemMotionWrapper
@@ -235,11 +268,15 @@ export function Stack() {
                                         item={item}
                                         index={index}
                                         stackLength={stack.length}
-                                        animation={ANIMATION.DEFAULT}
-                                        exit={ANIMATION.POP.exit}
-                                    />
+                                        animation={ANIMATION_CONFIG.POP.animate}
+                                        exit={ANIMATION_CONFIG.POP.exit}
+                                    >
+                                        {item.value}
+                                    </StackItemMotionWrapper>
                                 );
                             }
+
+                            // Peeking animation
                             if (isPeeking) {
                                 return (
                                     <StackItemMotionWrapper
@@ -247,19 +284,21 @@ export function Stack() {
                                         item={item}
                                         index={index}
                                         stackLength={stack.length}
-                                        animation={ANIMATION.PEEK}
+                                        animation={ANIMATION_CONFIG.PEEK}
                                     />
                                 );
                             }
+
+                            // Default animation
                             return (
                                 <StackItemMotionWrapper
                                     key={item.id}
                                     item={item}
                                     index={index}
                                     stackLength={stack.length}
-                                    animation={{ ...ANIMATION.DEFAULT, borderColor }}
+                                    animation={{ ...ANIMATION_CONFIG.DEFAULT, borderColor }}
                                 >
-                                    ...
+                                    {item.id === recentlyPushedId ? item.value : "..."}
                                 </StackItemMotionWrapper>
                             );
                         })}
