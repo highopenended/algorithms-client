@@ -9,7 +9,6 @@ interface StackItem {
 // Config constants
 const STACK_CONFIG = {
     verticalSpacing: 16,
-    depthSpacing: 2,
     pushOffsetY: "-3rem",
 };
 
@@ -23,7 +22,7 @@ const BUTTON_CONFIG = {
 // Animation constants
 const ANIMATION_CONFIG = {
     PUSH: {
-        baseDuration: 0.4,
+        baseDuration: 0.2,
         initial: {
             backgroundColor: "rgba(255, 255, 255, 0)",
             borderWidth: 0,
@@ -31,6 +30,7 @@ const ANIMATION_CONFIG = {
             padding: "0rem",
             boxShadow: "none",
             width: "auto",
+            borderColor: "rgba(255, 255, 255, 0)",
         },
         animate: {
             backgroundColor: "rgba(255, 255, 255, 1)",
@@ -147,7 +147,6 @@ const StackItemMotionWrapper = ({
         <motion.div
             animate={animation}
             className="h-16 w-full bg-white border-2 rounded-lg flex items-center justify-center transform-gpu preserve-3d"
-            style={{ transform: `translateZ(${index * STACK_CONFIG.depthSpacing}px)` }}
         >
             <span className="text-gray-700">{children || item.value}</span>
         </motion.div>
@@ -189,6 +188,7 @@ export function Stack() {
     const [isAnimatingPop, setIsAnimatingPop] = useState(false);
     const [isAnimatingPeek, setIsAnimatingPeek] = useState(false);
     const [isAnimatingReset, setIsAnimatingReset] = useState(false);
+    const [isInputShaking, setIsInputShaking] = useState(false);
     const [poppingItem, setPoppingItem] = useState<StackItem | null>(null);
     const [pushingValue, setPushingValue] = useState("");
     const [recentlyPushedId, setRecentlyPushedId] = useState<number | null>(null);
@@ -279,10 +279,15 @@ export function Stack() {
         if (!inputRef.current || !containerRef.current) return { x: 0, y: 0 };
         const inputRect = inputRef.current.getBoundingClientRect();
         const containerRect = containerRef.current.getBoundingClientRect();
-        return {
-            x: inputRect.left - containerRect.left + (inputRect.width - containerRect.width) / 2,
-            y: inputRect.top - containerRect.top + (inputRect.height - containerRect.height) / 2,
-        };
+        
+        // Calculate center of input relative to container
+        const x = (inputRect.left + inputRect.width / 2) - (containerRect.left + containerRect.width / 2);
+        
+        // Calculate vertical position to start from input's center
+        const y = (inputRect.top-inputRect.height) - (containerRect.top + inputRect.height/2);
+        
+        
+        return { x, y };
     };
 
     const isButtonDisabled = (action: "Push" | "Pop" | "Peek") => {
@@ -310,40 +315,52 @@ export function Stack() {
 
     return (
         <div className="p-6 flex flex-col items-center">
-            <div className="flex flex-col sm:flex-row gap-4 mb-8 items-center w-full max-w-lg">
-                <input
+            <div className="flex flex-col gap-4 mb-8 items-center w-full max-w-lg">
+                <motion.input
                     ref={inputRef}
                     type="text"
                     value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
+                    maxLength={30}
+                    animate={isInputShaking ? {
+                        x: [0, -5, 5, -5, 5, 0],
+                        transition: { duration: 0.3 }
+                    } : {}}
+                    onChange={(e) => {
+                        const newValue = e.target.value;
+                        if (newValue.length === 30 && inputValue.length < 30) {
+                            setIsInputShaking(true);
+                            setTimeout(() => setIsInputShaking(false), 300);
+                        }
+                        setInputValue(newValue);
+                    }}
                     onKeyDown={(e) => {
                         if (e.key === 'Enter' && !isButtonDisabled("Push")) {
                             handlePush();
                         }
                     }}
                     disabled={isAnimatingPush}
-                    className="px-4 py-2 border rounded shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:bg-gray-100 text-center w-full sm:w-48"
+                    className="px-4 py-2 border rounded shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:bg-gray-100 text-center w-full"
                     placeholder="Enter value..."
                 />
-                <div className="flex flex-wrap justify-center gap-2 w-full sm:w-auto">
+                <div className="flex justify-center gap-2 w-full">
                     <button
                         onClick={handlePush}
                         disabled={isButtonDisabled("Push")}
-                        className="px-4 py-2 bg-green-500 text-white rounded shadow hover:bg-green-600 transition-colors disabled:opacity-50 flex-1 sm:flex-none min-w-[5rem]"
+                        className="px-4 py-2 bg-green-500 text-white rounded shadow hover:bg-green-600 transition-colors disabled:opacity-50 flex-1 min-w-[5rem]"
                     >
                         Push
                     </button>
                     <button
                         onClick={handlePop}
                         disabled={isButtonDisabled("Pop")}
-                        className="px-4 py-2 bg-red-500 text-white rounded shadow hover:bg-red-600 transition-colors disabled:opacity-50 flex-1 sm:flex-none min-w-[5rem]"
+                        className="px-4 py-2 bg-red-500 text-white rounded shadow hover:bg-red-600 transition-colors disabled:opacity-50 flex-1 min-w-[5rem]"
                     >
                         Pop
                     </button>
                     <button
                         onClick={handlePeek}
                         disabled={isButtonDisabled("Peek")}
-                        className="px-4 py-2 bg-blue-500 text-white rounded shadow hover:bg-blue-600 transition-colors disabled:opacity-50 flex-1 sm:flex-none min-w-[5rem]"
+                        className="px-4 py-2 bg-blue-500 text-white rounded shadow hover:bg-blue-600 transition-colors disabled:opacity-50 flex-1 min-w-[5rem]"
                     >
                         Peek
                     </button>
@@ -367,12 +384,12 @@ export function Stack() {
                 </button>
             </div>
 
-            <div ref={containerRef} className="relative w-full max-w-md h-[400px] flex items-start justify-center pt-20">
+            <div ref={containerRef} className="relative w-full max-w-md h-[400px] flex items-start justify-center pt-20" style={{ perspective: "1000px" }}>
                 {isAnimatingPush && (
                     <PushingAnimation position={getInputPosition()} value={pushingValue} zIndex={stack.length + 1} />
                 )}
 
-                <div className="relative w-64">
+                <div className="relative w-64" style={{ transformStyle: "preserve-3d" }}>
                     <AnimatePresence>
                         {stack.map((item, index) => {
                             const isTop = index === stack.length - 1;

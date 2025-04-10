@@ -30,7 +30,7 @@ const InteractionZone = ({
                 <div className="p-4">
                     {selectedAlgo ? (
                         <>
-                            <h2 className="text-xl font-bold mb-4">{selectedAlgo.name}</h2>
+                            <h2 className="text-xl font-bold mb-4 text-center">{selectedAlgo.name}</h2>
                             <selectedAlgo.component />
                         </>
                     ) : (
@@ -84,7 +84,7 @@ const InteractionZone = ({
             <div className="p-4">
                 {selectedAlgo ? (
                     <>
-                        <h2 className="text-xl font-bold mb-4">{selectedAlgo.name}</h2>
+                        <h2 className="text-xl font-bold mb-4 text-center">{selectedAlgo.name}</h2>
                         <selectedAlgo.component />
                     </>
                 ) : (
