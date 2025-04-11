@@ -270,7 +270,8 @@ const EnqueuingAnimation = ({
 );
 
 export function Queue() {
-    const [queue, setQueue] = useState<QueueItem[]>([]);
+    const [actualQueue, setActualQueue] = useState<QueueItem[]>([]);
+    const [visibleQueue, setVisibleQueue] = useState<QueueItem[]>([]);
     const [inputValue, setInputValue] = useState("");
     const [nextId, setNextId] = useState(0);
     const [isAnimatingEnqueue, setIsAnimatingEnqueue] = useState(false);
@@ -284,15 +285,11 @@ export function Queue() {
     const inputRef = useRef<HTMLInputElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
-    // Calculate delay per item for reset animation
-    const resetDelayPerItem = queue.length > 1 
-        ? ANIMATION_CONFIG.RESET.totalDuration / (queue.length - 1)
-        : 0;
-
-    // Focus input on component mount and whenever animations complete
-    useEffect(() => {
-        inputRef.current?.focus();
-    }, [isAnimatingEnqueue, isAnimatingDequeue, isAnimatingPeek]);
+    // Calculate maximum visible items based on available space
+    const getMaxVisibleItems = () => {
+        const availableSpace = QUEUE_CONFIG.maxFloorOffset - QUEUE_CONFIG.verticalSpacing - QUEUE_CONFIG.bottomItemSeparation - QUEUE_CONFIG.topItemSeparation;
+        return Math.floor(availableSpace / (QUEUE_CONFIG.verticalSpacing * QUEUE_CONFIG.minCompressionRatio)) + 3; // +3 for top, bottom, and second-from-bottom items
+    };
 
     const handleEnqueue = () => {
         if (!inputValue.trim() || isAnimatingEnqueue) return;
@@ -300,32 +297,63 @@ export function Queue() {
         setEnqueuingValue(inputValue.trim());
         setIsAnimatingEnqueue(true);
         setInputValue("");
-        setTimeout(() => {
-            setQueue([...queue, newItem]);
+
+        // Always add to actual queue
+        const newActualQueue = [...actualQueue, newItem];
+        setActualQueue(newActualQueue);
+
+        // Only add to visible queue if under max visible items
+        const maxVisible = getMaxVisibleItems();
+        if (visibleQueue.length < maxVisible) {
+            setTimeout(() => {
+                setVisibleQueue([...visibleQueue, newItem]);
+                setNextId(nextId + 1);
+                setIsAnimatingEnqueue(false);
+                setEnqueuingValue("");
+                setRecentlyEnqueuedId(newItem.id);
+                setTimeout(() => {
+                    setRecentlyEnqueuedId(null);
+                }, 500);
+            }, ANIMATION_CONFIG.ENQUEUE.baseDuration * 1000);
+        } else {
+            // Just update the ID and clear animation states
             setNextId(nextId + 1);
             setIsAnimatingEnqueue(false);
             setEnqueuingValue("");
-            setRecentlyEnqueuedId(newItem.id);
-            setTimeout(() => {
-                setRecentlyEnqueuedId(null);
-            }, 500);
-        }, ANIMATION_CONFIG.ENQUEUE.baseDuration * 1000);
+        }
     };
 
     const handleDequeue = () => {
-        if (queue.length === 0 || isAnimatingDequeue) return;
-        const itemToDequeue = queue[0]; // Get the first item (bottom of the queue)
-        setDequeuingItem(itemToDequeue);
-        setIsAnimatingDequeue(true);
-        setTimeout(() => {
-            setQueue(queue.slice(1)); // Remove the first item
-            setIsAnimatingDequeue(false);
-            setDequeuingItem(null);
-        }, ANIMATION_CONFIG.DEQUEUE.baseDuration * 1000);
+        if (actualQueue.length === 0 || isAnimatingDequeue) return;
+
+        // Always remove from actual queue
+        const [dequeuedItem, ...newActualQueue] = actualQueue;
+        setActualQueue(newActualQueue);
+
+        // Handle visible queue
+        if (visibleQueue.length > 0) {
+            setDequeuingItem(visibleQueue[0]);
+            setIsAnimatingDequeue(true);
+
+            setTimeout(() => {
+                const [_, ...newVisibleQueue] = visibleQueue;
+                
+                // If we have more items in actual queue than visible queue can show,
+                // add the next item from actual queue to visible queue
+                const maxVisible = getMaxVisibleItems();
+                if (newActualQueue.length > newVisibleQueue.length && newVisibleQueue.length < maxVisible) {
+                    newVisibleQueue.push(newActualQueue[newVisibleQueue.length]);
+                }
+                
+                setVisibleQueue(newVisibleQueue);
+                setIsAnimatingDequeue(false);
+                setDequeuingItem(null);
+            }, ANIMATION_CONFIG.DEQUEUE.baseDuration * 1000);
+        }
     };
 
     const handlePeek = () => {
-        if (queue.length === 0) return;
+        if (actualQueue.length === 0) return;
         setIsAnimatingPeek(true);
         setTimeout(() => {
             setIsAnimatingPeek(false);
@@ -333,11 +361,12 @@ export function Queue() {
     };
 
     const handleReset = () => {
-        if (queue.length === 0 || isAnimatingReset) return;
+        if (actualQueue.length === 0 || isAnimatingReset) return;
         setIsAnimatingReset(true);
         
         setTimeout(() => {
-            setQueue([]);
+            setActualQueue([]);
+            setVisibleQueue([]);
             setIsAnimatingReset(false);
             inputRef.current?.focus();
         }, ANIMATION_CONFIG.RESET.initialDelay * 1000);
@@ -357,8 +386,18 @@ export function Queue() {
             value
         }));
 
+        // Add all items to actual queue
+        setActualQueue([...actualQueue, ...newItems]);
+
+        // Add items to visible queue only if there's space
+        const maxVisible = getMaxVisibleItems();
+        const availableSpace = maxVisible - visibleQueue.length;
+        if (availableSpace > 0) {
+            const itemsToAdd = newItems.slice(0, availableSpace);
+            setVisibleQueue([...visibleQueue, ...itemsToAdd]);
+        }
+
         setNextId(nextId + 5);
-        setQueue([...queue, ...newItems]);
     };
 
     const getInputPosition = () => {
@@ -383,12 +422,12 @@ export function Queue() {
             (action === "Enqueue" &&
                 (!inputValue.trim() || (isAnimating.Enqueue && !BUTTON_CONFIG.ENQUEUE.btnEnabled[action]))) ||
             (action === "Dequeue" &&
-                (queue.length === 0 ||
+                (actualQueue.length === 0 ||
                     (isAnimating.Enqueue && !BUTTON_CONFIG.ENQUEUE.btnEnabled[action]) ||
                     (isAnimating.Dequeue && !BUTTON_CONFIG.DEQUEUE.btnEnabled[action]) ||
                     (isAnimating.Peek && !BUTTON_CONFIG.PEEK.btnEnabled[action]))) ||
             (action === "Peek" &&
-                (queue.length === 0 ||
+                (actualQueue.length === 0 ||
                     (isAnimating.Enqueue && !BUTTON_CONFIG.ENQUEUE.btnEnabled[action]) ||
                     (isAnimating.Dequeue && !BUTTON_CONFIG.DEQUEUE.btnEnabled[action]) ||
                     (isAnimating.Peek && !BUTTON_CONFIG.PEEK.btnEnabled[action])))
@@ -453,7 +492,7 @@ export function Queue() {
                     <span className="w-[120px] text-right">
                         <button
                             onClick={handleReset}
-                            disabled={queue.length === 0 || isAnimatingReset || isAnimatingEnqueue || isAnimatingDequeue || isAnimatingPeek}
+                            disabled={actualQueue.length === 0 || isAnimatingReset || isAnimatingEnqueue || isAnimatingDequeue || isAnimatingPeek}
                             className="text-gray-500 hover:text-gray-700 disabled:opacity-40 disabled:hover:text-gray-500 transition-colors"
                         >
                             Reset Queue
@@ -470,18 +509,18 @@ export function Queue() {
                         </button>
                     </span>
                 </div>
-                <p className="text-gray-600 font-medium">Queue Size: {queue.length}</p>
+                <p className="text-gray-600 font-medium">Queue Size: {actualQueue.length}</p>
             </div>
 
             <div ref={containerRef} className="relative w-full max-w-md h-[400px] flex items-start justify-center pt-20" style={{ perspective: "1000px" }}>
-                {isAnimatingEnqueue && (
-                    <EnqueuingAnimation position={getInputPosition()} value={enqueuingValue} zIndex={queue.length + 1} />
+                {isAnimatingEnqueue && visibleQueue.length < getMaxVisibleItems() && (
+                    <EnqueuingAnimation position={getInputPosition()} value={enqueuingValue} zIndex={visibleQueue.length + 1} />
                 )}
 
                 <div className="relative w-64" style={{ transformStyle: "preserve-3d" }}>
-                    <Floor queueLength={queue.length} />
+                    <Floor queueLength={visibleQueue.length} />
                     <AnimatePresence>
-                        {queue.map((item, index) => {
+                        {visibleQueue.map((item, index) => {
                             const isBottom = index === 0; // First item is at the bottom
                             const isDequeuing = isBottom && dequeuingItem?.id === item.id;
                             const isPeeking = isBottom && isAnimatingPeek;
@@ -495,7 +534,7 @@ export function Queue() {
                                         key={item.id}
                                         item={item}
                                         index={index}
-                                        queueLength={queue.length}
+                                        queueLength={visibleQueue.length}
                                         animation={ANIMATION_CONFIG.DEFAULT}
                                         exit={{
                                             ...ANIMATION_CONFIG.RESET.exit,
@@ -503,7 +542,7 @@ export function Queue() {
                                             x: randomXdrift,
                                             transition: {
                                                 ...ANIMATION_CONFIG.RESET.exit.transition,
-                                                delay: index * resetDelayPerItem,
+                                                delay: index * (ANIMATION_CONFIG.RESET.totalDuration / visibleQueue.length),
                                             },
                                         }}
                                     >
@@ -518,7 +557,7 @@ export function Queue() {
                                         key={item.id}
                                         item={item}
                                         index={index}
-                                        queueLength={queue.length}
+                                        queueLength={visibleQueue.length}
                                         animation={ANIMATION_CONFIG.DEQUEUE.animate}
                                         exit={ANIMATION_CONFIG.DEQUEUE.exit}
                                     >
@@ -533,7 +572,7 @@ export function Queue() {
                                         key={item.id}
                                         item={item}
                                         index={index}
-                                        queueLength={queue.length}
+                                        queueLength={visibleQueue.length}
                                         animation={ANIMATION_CONFIG.PEEK}
                                     >
                                         {item.value}
@@ -546,7 +585,7 @@ export function Queue() {
                                     key={item.id}
                                     item={item}
                                     index={index}
-                                    queueLength={queue.length}
+                                    queueLength={visibleQueue.length}
                                     animation={{ ...ANIMATION_CONFIG.DEFAULT, borderColor }}
                                 >
                                     {item.id === recentlyEnqueuedId ? item.value : "..."}
