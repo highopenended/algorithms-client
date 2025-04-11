@@ -94,8 +94,8 @@ const ANIMATION_CONFIG = {
     PEEK: {
         baseDuration: 1,
         scale: 1.1,
-        y: "-0.5rem",
-        x:"1rem",
+        y: "0.25rem",
+        x:"0.5rem",
         borderColor: "#2563EB",
         boxShadow: "0 0 15px 5px rgba(37, 99, 235, 0.3)",
         transition: { duration: 0.2, ease: "easeOut" },
@@ -146,11 +146,20 @@ const StackItemMotionWrapper = ({
     >
         <motion.div
             animate={animation}
-            className="h-16 w-full bg-white border-2 rounded-lg flex items-center justify-center transform-gpu preserve-3d"
+            className="h-12 w-full bg-white border-2 rounded-lg flex items-center justify-center transform-gpu preserve-3d"
         >
             <span className="text-gray-700">{children || item.value}</span>
         </motion.div>
     </motion.div>
+);
+
+const Floor = ({ stackLength }: { stackLength: number }) => (
+    <motion.div
+        initial={false}
+        animate={{ y: (stackLength * STACK_CONFIG.verticalSpacing) + 2 }}
+        className="absolute bottom-0 w-[120%] h-[0.5px] bg-gray-700 left-[-10%]"
+        style={{ zIndex: -1 }}
+    />
 );
 
 const PushingAnimation = ({
@@ -255,24 +264,24 @@ export function Stack() {
         }, ANIMATION_CONFIG.RESET.initialDelay * 1000);
     };
 
-    const handleFill = () => {
+    const handleAddRandom = () => {
         if (isAnimatingPush || isAnimatingPop || isAnimatingPeek) return;
         
-        // Generate 50 random values
-        const randomValues = Array.from({ length: 50 }, () => {
+        // Generate 5 random values
+        const randomValues = Array.from({ length: 5 }, () => {
             const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
             const length = Math.floor(Math.random() * 3) + 1; // 1-3 characters
             return Array.from({ length }, () => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
         });
 
-        // Create new stack items
+        // Create new stack items and add them to existing stack
         const newItems = randomValues.map((value, index) => ({
             id: nextId + index,
             value
         }));
 
-        setNextId(nextId + 50);
-        setStack(newItems);
+        setNextId(nextId + 5);
+        setStack([...stack, ...newItems]);
     };
 
     const getInputPosition = () => {
@@ -366,22 +375,29 @@ export function Stack() {
                     </button>
                 </div>
             </div>
-            <div className="mt-4 text-gray-600 flex items-center gap-4">
-                <p>Stack Size: {stack.length}</p>
-                <button
-                    onClick={handleReset}
-                    disabled={stack.length === 0 || isAnimatingReset}
-                    className="px-3 py-1 bg-gray-500 text-white text-sm rounded shadow hover:bg-gray-600 transition-colors disabled:opacity-50"
-                >
-                    Reset
-                </button>
-                <button
-                    onClick={handleFill}
-                    disabled={isAnimatingPush || isAnimatingPop || isAnimatingPeek}
-                    className="px-3 py-1 bg-purple-500 text-white text-sm rounded shadow hover:bg-purple-600 transition-colors disabled:opacity-50"
-                >
-                    Fill
-                </button>
+            <div className="flex flex-col items-center gap-2">
+                <div className="flex items-center justify-center text-sm whitespace-nowrap">
+                    <span className="w-[120px] text-right">
+                        <button
+                            onClick={handleReset}
+                            disabled={stack.length === 0 || isAnimatingReset}
+                            className="text-gray-500 hover:text-gray-700 disabled:opacity-40 disabled:hover:text-gray-500 transition-colors"
+                        >
+                            Reset Stack
+                        </button>
+                    </span>
+                    <span className="w-[20px] text-center text-gray-300">|</span>
+                    <span className="w-[120px] text-left">
+                        <button
+                            onClick={handleAddRandom}
+                            disabled={isAnimatingPush || isAnimatingPop || isAnimatingPeek}
+                            className="text-gray-500 hover:text-gray-700 disabled:opacity-40 disabled:hover:text-gray-500 transition-colors"
+                        >
+                            Add Random
+                        </button>
+                    </span>
+                </div>
+                <p className="text-gray-600 font-medium">Stack Size: {stack.length}</p>
             </div>
 
             <div ref={containerRef} className="relative w-full max-w-md h-[400px] flex items-start justify-center pt-20" style={{ perspective: "1000px" }}>
@@ -390,6 +406,7 @@ export function Stack() {
                 )}
 
                 <div className="relative w-64" style={{ transformStyle: "preserve-3d" }}>
+                    <Floor stackLength={stack.length} />
                     <AnimatePresence>
                         {stack.map((item, index) => {
                             const isTop = index === stack.length - 1;
