@@ -10,6 +10,12 @@ interface QueueItem {
 const QUEUE_CONFIG = {
     verticalSpacing: 16,
     enqueueOffsetY: "-3rem",
+    maxFloorOffset: 320, // Maximum distance the floor can move down (in pixels)
+    itemHeight: 48, // Height of each item (3rem = 48px)
+    minSpacing: 8, // Minimum spacing between items when compressed
+    topItemSeparation: 32, // Constant separation for top item
+    bottomItemSeparation: 32, // Constant separation for bottom item
+    minCompressionRatio: 0.3, // Minimum allowed compression (30% of normal spacing)
 };
 
 const BUTTON_CONFIG = {
@@ -136,15 +142,65 @@ const QueueItemMotionWrapper = ({
     exit?: any;
     children?: React.ReactNode;
 }) => {
-    // Calculate horizontal offset:
-    // Top item (highest index) offset left
-    // Bottom item (index 0) offset right
-    // All others centered
     const getHorizontalOffset = () => {
         if (queueLength <= 1) return 0;
         if (index === queueLength - 1) return "-1rem"; // Top item
         if (index === 0) return "1rem"; // Bottom item
         return 0; // Middle items
+    };
+
+    // Calculate vertical spacing based on queue size
+    const getVerticalPosition = () => {
+        const maxItemsAtNormalSpacing = Math.floor(QUEUE_CONFIG.maxFloorOffset / QUEUE_CONFIG.verticalSpacing);
+        
+        if (queueLength <= maxItemsAtNormalSpacing) {
+            // Normal spacing
+            return (queueLength - index) * QUEUE_CONFIG.verticalSpacing;
+        } else {
+            // Calculate available space and required spacing
+            const availableSpace = QUEUE_CONFIG.maxFloorOffset - QUEUE_CONFIG.verticalSpacing - QUEUE_CONFIG.bottomItemSeparation - QUEUE_CONFIG.topItemSeparation;
+            const middleItemCount = queueLength - 3; // Excluding top, bottom, and second-from-bottom items
+            const requiredSpacing = availableSpace / middleItemCount;
+            
+            // Calculate compression ratio
+            const compressionRatio = requiredSpacing / QUEUE_CONFIG.verticalSpacing;
+            
+            // If compression would exceed minimum ratio, use minimum spacing
+            const effectiveSpacing = compressionRatio < QUEUE_CONFIG.minCompressionRatio
+                ? QUEUE_CONFIG.verticalSpacing * QUEUE_CONFIG.minCompressionRatio
+                : requiredSpacing;
+
+            // Position items based on their role
+            if (index === 0) {
+                // Bottom item
+                return QUEUE_CONFIG.maxFloorOffset;
+            } else if (index === 1) {
+                // Second from bottom item
+                return QUEUE_CONFIG.maxFloorOffset - QUEUE_CONFIG.bottomItemSeparation;
+            } else if (index === queueLength - 1) {
+                // Top item - keep it at a fixed distance from maxFloorOffset
+                return QUEUE_CONFIG.verticalSpacing;
+            } else {
+                // Middle items use effective spacing
+                const bottomItemsHeight = QUEUE_CONFIG.maxFloorOffset - QUEUE_CONFIG.bottomItemSeparation;
+                // Calculate how many items we can show at minimum compression
+                const maxVisibleMiddleItems = Math.floor(availableSpace / (QUEUE_CONFIG.verticalSpacing * QUEUE_CONFIG.minCompressionRatio));
+                
+                if (compressionRatio < QUEUE_CONFIG.minCompressionRatio) {
+                    // We're at max compression, show only visible items
+                    if (index - 1 <= maxVisibleMiddleItems) {
+                        // This item is within visible range
+                        return bottomItemsHeight - (index - 1) * (QUEUE_CONFIG.verticalSpacing * QUEUE_CONFIG.minCompressionRatio);
+                    } else {
+                        // This item is beyond visible range, stack it with the last visible item
+                        return bottomItemsHeight - maxVisibleMiddleItems * (QUEUE_CONFIG.verticalSpacing * QUEUE_CONFIG.minCompressionRatio);
+                    }
+                } else {
+                    // Normal compression
+                    return bottomItemsHeight - (index - 1) * effectiveSpacing;
+                }
+            }
+        }
     };
 
     return (
@@ -153,7 +209,7 @@ const QueueItemMotionWrapper = ({
             animate={{ 
                 opacity: 1, 
                 scale: 1, 
-                y: (queueLength - index) * QUEUE_CONFIG.verticalSpacing,
+                y: getVerticalPosition(),
                 x: getHorizontalOffset()
             }}
             exit={exit}
@@ -170,14 +226,21 @@ const QueueItemMotionWrapper = ({
     );
 };
 
-const Floor = ({ queueLength }: { queueLength: number }) => (
-    <motion.div
-        initial={false}
-        animate={{ y: (queueLength * QUEUE_CONFIG.verticalSpacing) + 2 }}
-        className="absolute bottom-0 w-[120%] h-[0.5px] bg-gray-700 left-[-10%]"
-        style={{ zIndex: -1 }}
-    />
-);
+const Floor = ({ queueLength }: { queueLength: number }) => {
+    const getFloorPosition = () => {
+        const normalPosition = queueLength * QUEUE_CONFIG.verticalSpacing;
+        return Math.min(normalPosition, QUEUE_CONFIG.maxFloorOffset) + 2;
+    };
+
+    return (
+        <motion.div
+            initial={false}
+            animate={{ y: getFloorPosition() }}
+            className="absolute bottom-0 w-[120%] h-[0.5px] bg-gray-700 left-[-10%]"
+            style={{ zIndex: -1 }}
+        />
+    );
+};
 
 const EnqueuingAnimation = ({
     position,
