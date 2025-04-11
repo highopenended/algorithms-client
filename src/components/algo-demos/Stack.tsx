@@ -104,9 +104,8 @@ const ANIMATION_CONFIG = {
         totalDuration: 1, // Total time for the entire reset animation
         initialDelay: 0, // Initial delay before animation starts
         exit: {
-            x: 0,
             y: 1000,
-            rotate:45,
+            rotate: 45,
             transition: {
                 duration: 0.5,
                 ease: "easeIn",
@@ -380,7 +379,7 @@ export function Stack() {
                     <span className="w-[120px] text-right">
                         <button
                             onClick={handleReset}
-                            disabled={stack.length === 0 || isAnimatingReset}
+                            disabled={stack.length === 0 || isAnimatingReset || isAnimatingPush || isAnimatingPop || isAnimatingPeek}
                             className="text-gray-500 hover:text-gray-700 disabled:opacity-40 disabled:hover:text-gray-500 transition-colors"
                         >
                             Reset Stack
@@ -416,7 +415,7 @@ export function Stack() {
 
                             if (isAnimatingReset) {
                                 const randomRotation = Math.random() * 60 - 30; // Random value between -30 and 30
-                                const randomXdrift = Math.random() * 50 - 25 // Random value between -25 and 25
+                                const randomXdrift = Math.random() * 100 - 50 // Random value between -25 and 25
                                 return (
                                     <StackItemMotionWrapper
                                         key={item.id}
