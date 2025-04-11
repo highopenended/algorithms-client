@@ -50,7 +50,7 @@ const ANIMATION_CONFIG = {
             borderColor: "#9CA3AF",
         },
         animate: {
-            x: -20,
+            x: 20,
             y: -20,
             opacity: 1,
             borderColor: "#EF4444",
@@ -62,7 +62,7 @@ const ANIMATION_CONFIG = {
         },
         exit: {
             y: 0,
-            x: -200,
+            x: 200,
             opacity: 0,
             borderColor: "#EF4444",
             transition: {
@@ -94,8 +94,8 @@ const ANIMATION_CONFIG = {
     PEEK: {
         baseDuration: 1,
         scale: 1.1,
-        y: "0.25rem",
-        x: "-0.5rem",
+        y: "-0.25rem",
+        x: "1.75rem",
         borderColor: "#2563EB",
         boxShadow: "0 0 15px 5px rgba(37, 99, 235, 0.3)",
         transition: { duration: 0.2, ease: "easeOut" },
@@ -135,22 +135,40 @@ const QueueItemMotionWrapper = ({
     animation: any;
     exit?: any;
     children?: React.ReactNode;
-}) => (
-    <motion.div
-        initial={false}
-        animate={{ opacity: 1, scale: 1, y: (queueLength - index) * QUEUE_CONFIG.verticalSpacing }}
-        exit={exit}
-        className="absolute bottom-0 w-full"
-        style={{ zIndex: queueLength - index }}
-    >
+}) => {
+    // Calculate horizontal offset:
+    // Top item (highest index) offset left
+    // Bottom item (index 0) offset right
+    // All others centered
+    const getHorizontalOffset = () => {
+        if (queueLength <= 1) return 0;
+        if (index === queueLength - 1) return "-1rem"; // Top item
+        if (index === 0) return "1rem"; // Bottom item
+        return 0; // Middle items
+    };
+
+    return (
         <motion.div
-            animate={animation}
-            className="h-12 w-full bg-white border-2 rounded-lg flex items-center justify-center transform-gpu preserve-3d"
+            initial={false}
+            animate={{ 
+                opacity: 1, 
+                scale: 1, 
+                y: (queueLength - index) * QUEUE_CONFIG.verticalSpacing,
+                x: getHorizontalOffset()
+            }}
+            exit={exit}
+            className="absolute bottom-0 w-full"
+            style={{ zIndex: queueLength - index }}
         >
-            <span className="text-gray-700">{children || item.value}</span>
+            <motion.div
+                animate={animation}
+                className="h-12 w-full bg-white border-2 rounded-lg flex items-center justify-center transform-gpu preserve-3d"
+            >
+                <span className="text-gray-700">{children || item.value}</span>
+            </motion.div>
         </motion.div>
-    </motion.div>
-);
+    );
+};
 
 const Floor = ({ queueLength }: { queueLength: number }) => (
     <motion.div
