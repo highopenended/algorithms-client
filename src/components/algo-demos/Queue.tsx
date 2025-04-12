@@ -10,7 +10,7 @@ interface QueueItem {
 // Config constants
 const QUEUE_CONFIG = {
     verticalSpacing: 16,
-    enqueueOffsetY: "-3rem",
+    enqueueOffsetY: "12rem",
     maxFloorOffset: 320, // Maximum distance the floor can move down (in pixels)
     maxBottomPosition: 0, // Will be set dynamically based on screen height
     itemHeight: 48, // Height of each item (3rem = 48px)
@@ -30,7 +30,7 @@ const BUTTON_CONFIG = {
 // Animation constants
 const ANIMATION_CONFIG = {
     ENQUEUE: {
-        baseDuration: 0.2,
+        baseDuration: 0.4,
         initial: {
             backgroundColor: "rgba(255, 255, 255, 0)",
             borderWidth: 0,
@@ -44,7 +44,7 @@ const ANIMATION_CONFIG = {
             backgroundColor: "rgba(255, 255, 255, 1)",
             borderWidth: "0.125rem",
             borderRadius: "0.5rem",
-            padding: "1rem",
+            padding: "0.5rem",
             boxShadow:
                 "0 0.25rem 0.375rem -0.0625rem rgba(0, 0, 0, 0.1), 0 0.125rem 0.25rem -0.0625rem rgba(0, 0, 0, 0.06)",
             width: "16rem",
@@ -216,7 +216,7 @@ const QueueItemMotionWrapper = ({
             }}
             exit={exit}
             className="absolute top-0 w-full"
-            style={{ zIndex: queueLength - index }}
+            style={{ zIndex: queueLength - index + 10 }}
         >
             <motion.div
                 animate={animation}
@@ -230,7 +230,7 @@ const QueueItemMotionWrapper = ({
 
 const Floor = ({ queueLength }: { queueLength: number }) => {
     const getFloorPosition = () => {
-        if (queueLength === 0) return QUEUE_CONFIG.verticalSpacing;
+        if (queueLength === 0) return QUEUE_CONFIG.verticalSpacing + QUEUE_CONFIG.itemHeight;
         
         // Position floor below the last item
         const lastItemPosition = Math.min(queueLength * QUEUE_CONFIG.verticalSpacing, QUEUE_CONFIG.maxBottomPosition);
@@ -258,8 +258,8 @@ const EnqueuingAnimation = ({
     zIndex: number;
 }) => (
     <motion.div
-        initial={{ x: position.x, y: position.y, scale: 1, opacity: 1, ...ANIMATION_CONFIG.ENQUEUE.initial }}
-        animate={{ x: 0, y: QUEUE_CONFIG.enqueueOffsetY, zIndex: -1, scale: 1, opacity: 1, ...ANIMATION_CONFIG.ENQUEUE.animate }}
+        initial={{ x: position.x, y: position.y, scale: 1, opacity: 1, zIndex: 0, ...ANIMATION_CONFIG.ENQUEUE.initial }}
+        animate={{ x: -20, y: QUEUE_CONFIG.enqueueOffsetY, zIndex: 0, scale: 1, opacity: 1, ...ANIMATION_CONFIG.ENQUEUE.animate }}
         transition={{
             duration: ANIMATION_CONFIG.ENQUEUE.baseDuration,
             backgroundColor: { delay: 0, duration: ANIMATION_CONFIG.ENQUEUE.baseDuration * 0.4 },
@@ -269,7 +269,7 @@ const EnqueuingAnimation = ({
             boxShadow: { delay: 0, duration: ANIMATION_CONFIG.ENQUEUE.baseDuration },
             width: { delay: 0, duration: ANIMATION_CONFIG.ENQUEUE.baseDuration },
         }}
-        className="absolute z-[-1] border-gray-400 flex items-center justify-center"
+        className="absolute border-gray-400 flex items-center justify-center"
     >
         <span className="text-gray-700">{value}</span>
     </motion.div>
@@ -549,6 +549,10 @@ export function Queue({ screenHeight }: AlgoComponentProps) {
                 <p className="text-gray-600 font-medium">Queue Size: {actualQueue.length}</p>
             </div>
 
+            {isAnimatingEnqueue && visibleQueue.length < getMaxVisibleItems() && (
+                <EnqueuingAnimation position={getInputPosition()} value={enqueuingValue} zIndex={visibleQueue.length + 1} />
+            )}
+
             <div 
                 ref={containerRef} 
                 className="relative w-full max-w-md flex items-start justify-center" 
@@ -558,10 +562,6 @@ export function Queue({ screenHeight }: AlgoComponentProps) {
                     overflow: "hidden"
                 }}
             >
-                {isAnimatingEnqueue && visibleQueue.length < getMaxVisibleItems() && (
-                    <EnqueuingAnimation position={getInputPosition()} value={enqueuingValue} zIndex={visibleQueue.length + 1} />
-                )}
-
                 <div className="relative w-64" style={{ 
                     transformStyle: "preserve-3d",
                     display: "flex",
