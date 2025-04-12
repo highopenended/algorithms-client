@@ -1,13 +1,21 @@
 import { ComponentType } from 'react';
 
 /**
+ * Props that all algorithm components should accept
+ */
+export interface AlgoComponentProps {
+    /** Available screen height for the component */
+    screenHeight: number;
+}
+
+/**
  * Represents an algorithm component in the registry
  */
 export interface AlgoComponent {
     /** Display name of the algorithm */
     name: string;
     /** React component that implements the algorithm visualization */
-    component: ComponentType;
+    component: ComponentType<AlgoComponentProps>;
 }
 
 /**

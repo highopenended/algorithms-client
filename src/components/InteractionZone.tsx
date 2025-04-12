@@ -8,6 +8,7 @@ type InteractionZoneProps = {
     isMobile?: boolean;
     checkMobileView: () => void;
     screenWidth: number;
+    screenHeight: number;
 };
 
 const InteractionZone = ({
@@ -16,6 +17,7 @@ const InteractionZone = ({
     isMobile = false,
     checkMobileView,
     screenWidth,
+    screenHeight,
 }: InteractionZoneProps) => {
     const x = useMotionValue(0);
     const [isDragging, setIsDragging] = useState(false);
@@ -24,14 +26,19 @@ const InteractionZone = ({
     const mobileClasses = "fixed inset-0 z-50 touch-pan-x";
     const desktopClasses = "flex-1";
 
+    // Calculate available height for content (accounting for padding and other UI elements)
+    const contentHeight = screenHeight - (isMobile ? 0 : 32); // 32px for padding
+
     if (!isMobile) {
         return (
-            <div className={`${baseClasses} ${desktopClasses}`}>
-                <div className="p-4">
+            <div className={`${baseClasses} ${desktopClasses}`} style={{ height: contentHeight }}>
+                <div className="p-4 h-full">
                     {selectedAlgo ? (
                         <>
                             <h2 className="text-xl font-bold mb-4 text-center">{selectedAlgo.name}</h2>
-                            <selectedAlgo.component />
+                            <div className="h-[calc(100%-3rem)]">
+                                <selectedAlgo.component screenHeight={contentHeight - 48} />
+                            </div>
                         </>
                     ) : (
                         <p className="text-gray-500">Select an algorithm to begin</p>
@@ -44,7 +51,7 @@ const InteractionZone = ({
     return (
         <motion.div
             className={`${baseClasses} ${mobileClasses}`}
-            style={{ x }}
+            style={{ x, height: contentHeight }}
             initial={{ x: "100%" }}
             animate={{ x: selectedAlgo ? 0 : "100%" }}
             transition={{
@@ -81,11 +88,13 @@ const InteractionZone = ({
                 `}
             />
 
-            <div className="p-4">
+            <div className="p-4 h-full">
                 {selectedAlgo ? (
                     <>
                         <h2 className="text-xl font-bold mb-4 text-center">{selectedAlgo.name}</h2>
-                        <selectedAlgo.component />
+                        <div className="h-[calc(100%-3rem)]">
+                            <selectedAlgo.component screenHeight={contentHeight - 48} />
+                        </div>
                     </>
                 ) : (
                     <p className="text-gray-500">Select an algorithm to begin</p>

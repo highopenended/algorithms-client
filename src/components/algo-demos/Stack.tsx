@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { AlgoComponentProps } from "../../types/algo.types";
 
 interface StackItem {
     id: number;
@@ -10,6 +11,12 @@ interface StackItem {
 const STACK_CONFIG = {
     verticalSpacing: 16,
     pushOffsetY: "-3rem",
+    maxFloorOffset: 320, // Maximum distance the floor can move down (in pixels)
+    itemHeight: 48, // Height of each item (3rem = 48px)
+    minSpacing: 8, // Minimum spacing between items when compressed
+    topItemSeparation: 32, // Constant separation for top item
+    bottomItemSeparation: 32, // Constant separation for bottom item
+    minCompressionRatio: 0.3, // Minimum allowed compression (30% of normal spacing)
 };
 
 const BUTTON_CONFIG = {
@@ -135,31 +142,94 @@ const StackItemMotionWrapper = ({
     animation: any;
     exit?: any;
     children?: React.ReactNode;
-}) => (
-    <motion.div
-        initial={false}
-        animate={{ opacity: 1, scale: 1, y: (stackLength - index) * STACK_CONFIG.verticalSpacing }}
-        exit={exit}
-        className="absolute bottom-0 w-full"
-        style={{ zIndex: index }}
-    >
-        <motion.div
-            animate={animation}
-            className="h-12 w-full bg-white border-2 rounded-lg flex items-center justify-center transform-gpu preserve-3d"
-        >
-            <span className="text-gray-700">{children || item.value}</span>
-        </motion.div>
-    </motion.div>
-);
+}) => {
+    // Calculate vertical spacing based on stack size
+    const getVerticalPosition = () => {
+        const maxItemsAtNormalSpacing = Math.floor(STACK_CONFIG.maxFloorOffset / STACK_CONFIG.verticalSpacing);
+        
+        if (stackLength <= maxItemsAtNormalSpacing) {
+            // Normal spacing
+            return (stackLength - index) * STACK_CONFIG.verticalSpacing;
+        }
+        
+        // Calculate available space and required spacing
+        const availableSpace = STACK_CONFIG.maxFloorOffset - STACK_CONFIG.verticalSpacing - STACK_CONFIG.bottomItemSeparation - STACK_CONFIG.topItemSeparation;
+        const middleItemCount = stackLength - 3; // Excluding top, bottom, and second-from-bottom items
+        const requiredSpacing = availableSpace / middleItemCount;
+        
+        // Calculate compression ratio
+        const compressionRatio = requiredSpacing / STACK_CONFIG.verticalSpacing;
+        
+        // If compression would exceed minimum ratio, use minimum spacing
+        const effectiveSpacing = compressionRatio < STACK_CONFIG.minCompressionRatio
+            ? STACK_CONFIG.verticalSpacing * STACK_CONFIG.minCompressionRatio
+            : requiredSpacing;
 
-const Floor = ({ stackLength }: { stackLength: number }) => (
-    <motion.div
-        initial={false}
-        animate={{ y: (stackLength * STACK_CONFIG.verticalSpacing) + 2 }}
-        className="absolute bottom-0 w-[120%] h-[0.5px] bg-gray-700 left-[-10%]"
-        style={{ zIndex: -1 }}
-    />
-);
+        // Position items based on their role
+        if (index === 0) {
+            // Bottom item
+            return STACK_CONFIG.maxFloorOffset;
+        } else if (index === 1) {
+            // Second from bottom item
+            return STACK_CONFIG.maxFloorOffset - STACK_CONFIG.bottomItemSeparation;
+        } else if (index === stackLength - 1) {
+            // Top item - keep it at a fixed distance from maxFloorOffset
+            return STACK_CONFIG.verticalSpacing;
+        } else {
+            // Middle items use effective spacing
+            const bottomItemsHeight = STACK_CONFIG.maxFloorOffset - STACK_CONFIG.bottomItemSeparation;
+            // Calculate how many items we can show at minimum compression
+            const maxVisibleMiddleItems = Math.floor(availableSpace / (STACK_CONFIG.verticalSpacing * STACK_CONFIG.minCompressionRatio));
+            
+            if (compressionRatio < STACK_CONFIG.minCompressionRatio) {
+                // We're at max compression, show only visible items
+                if (index - 1 <= maxVisibleMiddleItems) {
+                    // This item is within visible range
+                    return bottomItemsHeight - (index - 1) * (STACK_CONFIG.verticalSpacing * STACK_CONFIG.minCompressionRatio);
+                } else {
+                    // This item is beyond visible range, stack it with the last visible item
+                    return bottomItemsHeight - maxVisibleMiddleItems * (STACK_CONFIG.verticalSpacing * STACK_CONFIG.minCompressionRatio);
+                }
+            } else {
+                // Normal compression
+                return bottomItemsHeight - (index - 1) * effectiveSpacing;
+            }
+        }
+    };
+
+    return (
+        <motion.div
+            initial={false}
+            animate={{ opacity: 1, scale: 1, y: getVerticalPosition() }}
+            exit={exit}
+            className="absolute bottom-0 w-full"
+            style={{ zIndex: index }}
+        >
+            <motion.div
+                animate={animation}
+                className="h-12 w-full bg-white border-2 rounded-lg flex items-center justify-center transform-gpu preserve-3d"
+            >
+                <span className="text-gray-700">{children || item.value}</span>
+            </motion.div>
+        </motion.div>
+    );
+};
+
+const Floor = ({ stackLength }: { stackLength: number }) => {
+    const getFloorPosition = () => {
+        const normalPosition = stackLength * STACK_CONFIG.verticalSpacing;
+        return Math.min(normalPosition, STACK_CONFIG.maxFloorOffset) + 2;
+    };
+
+    return (
+        <motion.div
+            initial={false}
+            animate={{ y: getFloorPosition() }}
+            className="absolute bottom-0 w-[120%] h-[0.5px] bg-gray-700 left-[-10%]"
+            style={{ zIndex: -1 }}
+        />
+    );
+};
 
 const PushingAnimation = ({
     position,
@@ -188,7 +258,7 @@ const PushingAnimation = ({
     </motion.div>
 );
 
-export function Stack() {
+export function Stack({ screenHeight }: AlgoComponentProps) {
     const [stack, setStack] = useState<StackItem[]>([]);
     const [inputValue, setInputValue] = useState("");
     const [nextId, setNextId] = useState(0);
@@ -202,6 +272,17 @@ export function Stack() {
     const [recentlyPushedId, setRecentlyPushedId] = useState<number | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+
+    // Calculate container height based on screen height
+    const containerHeight = Math.max(300, screenHeight - 280); // 280px accounts for padding, buttons, and other UI elements
+    const visualizationHeight = containerHeight - 80; // 80px for padding and spacing
+
+    // Adjust spacing based on container height
+    const verticalSpacing = Math.min(16, Math.max(8, visualizationHeight / 20)); // Dynamic spacing between 8-16px
+    STACK_CONFIG.verticalSpacing = verticalSpacing;
+    STACK_CONFIG.maxFloorOffset = Math.min(320, visualizationHeight * 0.8); // 80% of visualization height
+    STACK_CONFIG.topItemSeparation = Math.max(16, verticalSpacing * 2);
+    STACK_CONFIG.bottomItemSeparation = Math.max(16, verticalSpacing * 2);
 
     // Calculate delay per item for reset animation
     const resetDelayPerItem = stack.length > 1 
@@ -322,8 +403,8 @@ export function Stack() {
     };
 
     return (
-        <div className="p-6 flex flex-col items-center">
-            <div className="flex flex-col gap-4 mb-8 items-center w-full max-w-lg">
+        <div className="p-6 flex flex-col items-center" style={{ height: screenHeight, maxHeight: screenHeight }}>
+            <div className="flex flex-col gap-4 mb-6 items-center w-full max-w-lg">
                 <motion.input
                     ref={inputRef}
                     type="text"
@@ -374,7 +455,7 @@ export function Stack() {
                     </button>
                 </div>
             </div>
-            <div className="flex flex-col items-center gap-2">
+            <div className="flex flex-col items-center gap-2 mb-4">
                 <div className="flex items-center justify-center text-sm whitespace-nowrap">
                     <span className="w-[120px] text-right">
                         <button
@@ -399,12 +480,26 @@ export function Stack() {
                 <p className="text-gray-600 font-medium">Stack Size: {stack.length}</p>
             </div>
 
-            <div ref={containerRef} className="relative w-full max-w-md h-[400px] flex items-start justify-center pt-20" style={{ perspective: "1000px" }}>
+            <div 
+                ref={containerRef} 
+                className="relative w-full max-w-md flex items-center justify-center" 
+                style={{ 
+                    height: containerHeight,
+                    perspective: "1000px",
+                    overflow: "hidden"
+                }}
+            >
                 {isAnimatingPush && (
                     <PushingAnimation position={getInputPosition()} value={pushingValue} zIndex={stack.length + 1} />
                 )}
 
-                <div className="relative w-64" style={{ transformStyle: "preserve-3d" }}>
+                <div className="relative w-64" style={{ 
+                    transformStyle: "preserve-3d", 
+                    height: visualizationHeight,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center"
+                }}>
                     <Floor stackLength={stack.length} />
                     <AnimatePresence>
                         {stack.map((item, index) => {

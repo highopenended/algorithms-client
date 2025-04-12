@@ -5,7 +5,8 @@ type AlgoListProps = {
     algoRegistry: AlgoRegistry;
     selectedAlgo: AlgoComponent | null;
     onSelectAlgo: (algo: AlgoComponent) => void;
-    isMobile?: boolean;
+    isMobile?: boolean; 
+    screenHeight: number;
 };
 
 const AlgoList = ({ algoRegistry, selectedAlgo, onSelectAlgo, isMobile = false }: AlgoListProps) => {

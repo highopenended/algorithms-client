@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { AlgoComponentProps } from "../../types/algo.types";
 
 interface QueueItem {
     id: number;
@@ -11,6 +12,7 @@ const QUEUE_CONFIG = {
     verticalSpacing: 16,
     enqueueOffsetY: "-3rem",
     maxFloorOffset: 320, // Maximum distance the floor can move down (in pixels)
+    maxBottomPosition: 0, // Will be set dynamically based on screen height
     itemHeight: 48, // Height of each item (3rem = 48px)
     minSpacing: 8, // Minimum spacing between items when compressed
     topItemSeparation: 32, // Constant separation for top item
@@ -151,14 +153,14 @@ const QueueItemMotionWrapper = ({
 
     // Calculate vertical spacing based on queue size
     const getVerticalPosition = () => {
-        const maxItemsAtNormalSpacing = Math.floor(QUEUE_CONFIG.maxFloorOffset / QUEUE_CONFIG.verticalSpacing);
+        const maxItemsAtNormalSpacing = Math.floor(QUEUE_CONFIG.maxBottomPosition / QUEUE_CONFIG.verticalSpacing);
         
         if (queueLength <= maxItemsAtNormalSpacing) {
             // Normal spacing
-            return (queueLength - index) * QUEUE_CONFIG.verticalSpacing;
+            return Math.min((queueLength - index) * QUEUE_CONFIG.verticalSpacing, QUEUE_CONFIG.maxBottomPosition);
         } else {
             // Calculate available space and required spacing
-            const availableSpace = QUEUE_CONFIG.maxFloorOffset - QUEUE_CONFIG.verticalSpacing - QUEUE_CONFIG.bottomItemSeparation - QUEUE_CONFIG.topItemSeparation;
+            const availableSpace = QUEUE_CONFIG.maxBottomPosition - QUEUE_CONFIG.verticalSpacing - QUEUE_CONFIG.bottomItemSeparation - QUEUE_CONFIG.topItemSeparation;
             const middleItemCount = queueLength - 3; // Excluding top, bottom, and second-from-bottom items
             const requiredSpacing = availableSpace / middleItemCount;
             
@@ -173,16 +175,16 @@ const QueueItemMotionWrapper = ({
             // Position items based on their role
             if (index === 0) {
                 // Bottom item
-                return QUEUE_CONFIG.maxFloorOffset;
+                return QUEUE_CONFIG.maxBottomPosition;
             } else if (index === 1) {
                 // Second from bottom item
-                return QUEUE_CONFIG.maxFloorOffset - QUEUE_CONFIG.bottomItemSeparation;
+                return QUEUE_CONFIG.maxBottomPosition - QUEUE_CONFIG.bottomItemSeparation;
             } else if (index === queueLength - 1) {
-                // Top item - keep it at a fixed distance from maxFloorOffset
+                // Top item - keep it at a fixed distance from maxBottomPosition
                 return QUEUE_CONFIG.verticalSpacing;
             } else {
                 // Middle items use effective spacing
-                const bottomItemsHeight = QUEUE_CONFIG.maxFloorOffset - QUEUE_CONFIG.bottomItemSeparation;
+                const bottomItemsHeight = QUEUE_CONFIG.maxBottomPosition - QUEUE_CONFIG.bottomItemSeparation;
                 // Calculate how many items we can show at minimum compression
                 const maxVisibleMiddleItems = Math.floor(availableSpace / (QUEUE_CONFIG.verticalSpacing * QUEUE_CONFIG.minCompressionRatio));
                 
@@ -197,7 +199,7 @@ const QueueItemMotionWrapper = ({
                     }
                 } else {
                     // Normal compression
-                    return bottomItemsHeight - (index - 1) * effectiveSpacing;
+                    return Math.min(bottomItemsHeight - (index - 1) * effectiveSpacing, QUEUE_CONFIG.maxBottomPosition);
                 }
             }
         }
@@ -213,7 +215,7 @@ const QueueItemMotionWrapper = ({
                 x: getHorizontalOffset()
             }}
             exit={exit}
-            className="absolute bottom-0 w-full"
+            className="absolute top-0 w-full"
             style={{ zIndex: queueLength - index }}
         >
             <motion.div
@@ -228,15 +230,19 @@ const QueueItemMotionWrapper = ({
 
 const Floor = ({ queueLength }: { queueLength: number }) => {
     const getFloorPosition = () => {
-        const normalPosition = queueLength * QUEUE_CONFIG.verticalSpacing;
-        return Math.min(normalPosition, QUEUE_CONFIG.maxFloorOffset) + 2;
+        if (queueLength === 0) return QUEUE_CONFIG.verticalSpacing;
+        
+        // Position floor below the last item
+        const lastItemPosition = Math.min(queueLength * QUEUE_CONFIG.verticalSpacing, QUEUE_CONFIG.maxBottomPosition);
+        const floorOffset = QUEUE_CONFIG.itemHeight + (QUEUE_CONFIG.verticalSpacing / 2);
+        return Math.min(lastItemPosition + floorOffset, QUEUE_CONFIG.maxBottomPosition + QUEUE_CONFIG.itemHeight);
     };
 
     return (
         <motion.div
             initial={false}
             animate={{ y: getFloorPosition() }}
-            className="absolute bottom-0 w-[120%] h-[0.5px] bg-gray-700 left-[-10%]"
+            className="absolute top-0 w-[120%] h-[0.5px] bg-gray-700 left-[-10%]"
             style={{ zIndex: -1 }}
         />
     );
@@ -269,7 +275,7 @@ const EnqueuingAnimation = ({
     </motion.div>
 );
 
-export function Queue() {
+export function Queue({ screenHeight }: AlgoComponentProps) {
     const [actualQueue, setActualQueue] = useState<QueueItem[]>([]);
     const [visibleQueue, setVisibleQueue] = useState<QueueItem[]>([]);
     const [inputValue, setInputValue] = useState("");
@@ -284,12 +290,43 @@ export function Queue() {
     const [recentlyEnqueuedId, setRecentlyEnqueuedId] = useState<number | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+    const prevScreenHeightRef = useRef(screenHeight);
+
+    // Calculate container height based on screen height
+    const containerHeight = Math.max(300, screenHeight - 280);
+
+    // Adjust spacing based on container height
+    const verticalSpacing = Math.min(16, Math.max(8, containerHeight / 20));
+    QUEUE_CONFIG.verticalSpacing = verticalSpacing;
+    // Leave space for the item height, floor line (0.5px) and some padding (16px)
+    QUEUE_CONFIG.maxBottomPosition = containerHeight - QUEUE_CONFIG.itemHeight - 16;
+    QUEUE_CONFIG.maxFloorOffset = QUEUE_CONFIG.maxBottomPosition;
+    QUEUE_CONFIG.topItemSeparation = Math.max(16, verticalSpacing * 2);
+    QUEUE_CONFIG.bottomItemSeparation = Math.max(16, verticalSpacing * 2);
 
     // Calculate maximum visible items based on available space
     const getMaxVisibleItems = () => {
         const availableSpace = QUEUE_CONFIG.maxFloorOffset - QUEUE_CONFIG.verticalSpacing - QUEUE_CONFIG.bottomItemSeparation - QUEUE_CONFIG.topItemSeparation;
-        return Math.floor(availableSpace / (QUEUE_CONFIG.verticalSpacing * QUEUE_CONFIG.minCompressionRatio)) + 3; // +3 for top, bottom, and second-from-bottom items
+        return Math.floor(availableSpace / (QUEUE_CONFIG.verticalSpacing * QUEUE_CONFIG.minCompressionRatio)) + 3;
     };
+
+    // Update visible queue only when screen height actually changes
+    useEffect(() => {
+        if (prevScreenHeightRef.current === screenHeight) {
+            return;
+        }
+        
+        const maxVisible = getMaxVisibleItems();
+        
+        if (actualQueue.length <= maxVisible) {
+            setVisibleQueue(actualQueue);
+        } else {
+            const startIndex = Math.max(0, actualQueue.length - maxVisible);
+            setVisibleQueue(actualQueue.slice(startIndex));
+        }
+
+        prevScreenHeightRef.current = screenHeight;
+    }, [screenHeight, actualQueue]);
 
     const handleEnqueue = () => {
         if (!inputValue.trim() || isAnimatingEnqueue) return;
@@ -435,8 +472,8 @@ export function Queue() {
     };
 
     return (
-        <div className="p-6 flex flex-col items-center">
-            <div className="flex flex-col gap-4 mb-8 items-center w-full max-w-lg">
+        <div className="p-6 flex flex-col items-center" style={{ height: screenHeight, maxHeight: screenHeight }}>
+            <div className="flex flex-col gap-4 mb-6 items-center w-full max-w-lg">
                 <motion.input
                     ref={inputRef}
                     type="text"
@@ -487,7 +524,7 @@ export function Queue() {
                     </button>
                 </div>
             </div>
-            <div className="flex flex-col items-center gap-2">
+            <div className="flex flex-col items-center gap-2 mb-4">
                 <div className="flex items-center justify-center text-sm whitespace-nowrap">
                     <span className="w-[120px] text-right">
                         <button
@@ -512,12 +549,25 @@ export function Queue() {
                 <p className="text-gray-600 font-medium">Queue Size: {actualQueue.length}</p>
             </div>
 
-            <div ref={containerRef} className="relative w-full max-w-md h-[400px] flex items-start justify-center pt-20" style={{ perspective: "1000px" }}>
+            <div 
+                ref={containerRef} 
+                className="relative w-full max-w-md flex items-start justify-center" 
+                style={{ 
+                    height: containerHeight,
+                    perspective: "1000px",
+                    overflow: "hidden"
+                }}
+            >
                 {isAnimatingEnqueue && visibleQueue.length < getMaxVisibleItems() && (
                     <EnqueuingAnimation position={getInputPosition()} value={enqueuingValue} zIndex={visibleQueue.length + 1} />
                 )}
 
-                <div className="relative w-64" style={{ transformStyle: "preserve-3d" }}>
+                <div className="relative w-64" style={{ 
+                    transformStyle: "preserve-3d",
+                    display: "flex",
+                    alignItems: "start",
+                    justifyContent: "center"
+                }}>
                     <Floor queueLength={visibleQueue.length} />
                     <AnimatePresence>
                         {visibleQueue.map((item, index) => {

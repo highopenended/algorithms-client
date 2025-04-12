@@ -6,6 +6,7 @@ import { algoRegistry } from './components/algo-demos/_index.ts';
 function App() {
   const [selectedAlgo, setSelectedAlgo] = useState(null);
   const [screenWidth, setScreenWidth] = useState(window.innerWidth);
+  const [screenHeight, setScreenHeight] = useState(window.innerHeight);
 
   const isMobileView = screenWidth < 768;
 
@@ -15,7 +16,10 @@ function App() {
   };
 
   useEffect(() => {
-    const handleResize = () => setScreenWidth(window.innerWidth);
+    const handleResize = () => {
+      setScreenWidth(window.innerWidth);
+      setScreenHeight(window.innerHeight);
+    };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -38,6 +42,7 @@ function App() {
             isMobile={false}
             checkMobileView={checkMobileView}
             screenWidth={screenWidth}
+            screenHeight={screenHeight}
           />
         </div>
       )}
@@ -61,6 +66,7 @@ function App() {
             isMobile={true}
             checkMobileView={checkMobileView}
             screenWidth={screenWidth}
+            screenHeight={screenHeight}
           />
         </>
       )}
