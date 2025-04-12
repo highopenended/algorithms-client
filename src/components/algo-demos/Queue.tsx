@@ -353,10 +353,12 @@ export function Queue({ screenHeight }: AlgoComponentProps) {
                 }, 500);
             }, ANIMATION_CONFIG.ENQUEUE.baseDuration * 1000);
         } else {
-            // Just update the ID and clear animation states
-            setNextId(nextId + 1);
-            setIsAnimatingEnqueue(false);
-            setEnqueuingValue("");
+            // Still wait for animation to complete before clearing states
+            setTimeout(() => {
+                setNextId(nextId + 1);
+                setIsAnimatingEnqueue(false);
+                setEnqueuingValue("");
+            }, ANIMATION_CONFIG.ENQUEUE.baseDuration * 1000);
         }
     };
 
@@ -549,7 +551,7 @@ export function Queue({ screenHeight }: AlgoComponentProps) {
                 <p className="text-gray-600 font-medium">Queue Size: {actualQueue.length}</p>
             </div>
 
-            {isAnimatingEnqueue && visibleQueue.length < getMaxVisibleItems() && (
+            {isAnimatingEnqueue && (
                 <EnqueuingAnimation 
                     position={getInputPosition()} 
                     value={enqueuingValue} 
