@@ -251,15 +251,15 @@ const Floor = ({ queueLength }: { queueLength: number }) => {
 const EnqueuingAnimation = ({
     position,
     value,
-    zIndex,
+    isFirstItem
 }: {
     position: { x: number; y: number };
     value: string;
-    zIndex: number;
+    isFirstItem: boolean;
 }) => (
     <motion.div
         initial={{ x: position.x, y: position.y, scale: 1, opacity: 1, zIndex: 0, ...ANIMATION_CONFIG.ENQUEUE.initial }}
-        animate={{ x: -20, y: QUEUE_CONFIG.enqueueOffsetY, zIndex: 0, scale: 1, opacity: 1, ...ANIMATION_CONFIG.ENQUEUE.animate }}
+        animate={{ x: isFirstItem ? 0 : -20, y: QUEUE_CONFIG.enqueueOffsetY, zIndex: 0, scale: 1, opacity: 1, ...ANIMATION_CONFIG.ENQUEUE.animate }}
         transition={{
             duration: ANIMATION_CONFIG.ENQUEUE.baseDuration,
             backgroundColor: { delay: 0, duration: ANIMATION_CONFIG.ENQUEUE.baseDuration * 0.4 },
@@ -550,7 +550,11 @@ export function Queue({ screenHeight }: AlgoComponentProps) {
             </div>
 
             {isAnimatingEnqueue && visibleQueue.length < getMaxVisibleItems() && (
-                <EnqueuingAnimation position={getInputPosition()} value={enqueuingValue} zIndex={visibleQueue.length + 1} />
+                <EnqueuingAnimation 
+                    position={getInputPosition()} 
+                    value={enqueuingValue} 
+                    isFirstItem={actualQueue.length === 1}
+                />
             )}
 
             <div 
@@ -558,8 +562,7 @@ export function Queue({ screenHeight }: AlgoComponentProps) {
                 className="relative w-full max-w-md flex items-start justify-center" 
                 style={{ 
                     height: containerHeight,
-                    perspective: "1000px",
-                    overflow: "hidden"
+                    perspective: "1000px"
                 }}
             >
                 <div className="relative w-64" style={{ 
