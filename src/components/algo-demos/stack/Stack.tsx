@@ -1,16 +1,17 @@
 import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { AlgoComponentProps } from "../../types/algo.types";
+import { AlgoComponentProps } from "../../../types/algo.types";
+import { StackItemMotionWrapper } from "./StackItemMotionWrapper.tsx";
 
-interface QueueItem {
+interface StackItem {
     id: number;
     value: string;
 }
 
 // Config constants
-const QUEUE_CONFIG = {
+const STACK_CONFIG = {
     verticalSpacing: 16,
-    enqueueOffsetY: "12rem",
+    pushOffsetY: "12rem",
     maxFloorOffset: 320, // Maximum distance the floor can move down (in pixels)
     maxBottomPosition: 0, // Will be set dynamically based on screen height
     itemHeight: 48, // Height of each item (3rem = 48px)
@@ -21,16 +22,16 @@ const QUEUE_CONFIG = {
 };
 
 const BUTTON_CONFIG = {
-    ENQUEUE: { btnEnabled: { Enqueue: false, Dequeue: false, Peek: false } },
-    DEQUEUE: { btnEnabled: { Enqueue: false, Dequeue: false, Peek: false } },
-    PEEK: { btnEnabled: { Enqueue: false, Dequeue: true, Peek: false } },
-    RESET: { btnEnabled: { Enqueue: true, Dequeue: true, Peek: true } },
+    PUSH: { btnEnabled: { Push: false, Pop: false, Peek: false } },
+    POP: { btnEnabled: { Push: false, Pop: false, Peek: false } },
+    PEEK: { btnEnabled: { Push: false, Pop: true, Peek: false } },
+    RESET: { btnEnabled: { Push: true, Pop: true, Peek: true } },
 };
 
 // Animation constants
 const ANIMATION_CONFIG = {
-    ENQUEUE: {
-        baseDuration: 0.99,
+    PUSH: {
+        baseDuration: 0.4,
         initial: {
             backgroundColor: "rgba(255, 255, 255, 0)",
             borderWidth: 0,
@@ -50,7 +51,7 @@ const ANIMATION_CONFIG = {
             width: "16rem",
         },
     },
-    DEQUEUE: {
+    POP: {
         baseDuration: 0.5,
         initial: {
             y: 0,
@@ -129,113 +130,14 @@ const ANIMATION_CONFIG = {
     },
 };
 
-const QueueItemMotionWrapper = ({
-    item,
-    index,
-    queueLength,
-    animation,
-    exit,
-    children,
-}: {
-    item: QueueItem;
-    index: number;
-    queueLength: number;
-    animation: any;
-    exit?: any;
-    children?: React.ReactNode;
-}) => {
-    const getHorizontalOffset = () => {
-        if (queueLength <= 1) return 0;
-        if (index === queueLength - 1) return "-1rem"; // Top item
-        if (index === 0) return "1rem"; // Bottom item
-        return 0; // Middle items
-    };
-
-    // Calculate vertical spacing based on queue size
-    const getVerticalPosition = () => {
-        const maxItemsAtNormalSpacing = Math.floor(QUEUE_CONFIG.maxBottomPosition / QUEUE_CONFIG.verticalSpacing);
-        
-        if (queueLength <= maxItemsAtNormalSpacing) {
-            // Normal spacing
-            return Math.min((queueLength - index) * QUEUE_CONFIG.verticalSpacing, QUEUE_CONFIG.maxBottomPosition);
-        } else {
-            // Calculate available space and required spacing
-            const availableSpace = QUEUE_CONFIG.maxBottomPosition - QUEUE_CONFIG.verticalSpacing - QUEUE_CONFIG.bottomItemSeparation - QUEUE_CONFIG.topItemSeparation;
-            const middleItemCount = queueLength - 3; // Excluding top, bottom, and second-from-bottom items
-            const requiredSpacing = availableSpace / middleItemCount;
-            
-            // Calculate compression ratio
-            const compressionRatio = requiredSpacing / QUEUE_CONFIG.verticalSpacing;
-            
-            // If compression would exceed minimum ratio, use minimum spacing
-            const effectiveSpacing = compressionRatio < QUEUE_CONFIG.minCompressionRatio
-                ? QUEUE_CONFIG.verticalSpacing * QUEUE_CONFIG.minCompressionRatio
-                : requiredSpacing;
-
-            // Position items based on their role
-            if (index === 0) {
-                // Bottom item
-                return QUEUE_CONFIG.maxBottomPosition;
-            } else if (index === 1) {
-                // Second from bottom item
-                return QUEUE_CONFIG.maxBottomPosition - QUEUE_CONFIG.bottomItemSeparation;
-            } else if (index === queueLength - 1) {
-                // Top item - keep it at a fixed distance from maxBottomPosition
-                return QUEUE_CONFIG.verticalSpacing;
-            } else {
-                // Middle items use effective spacing
-                const bottomItemsHeight = QUEUE_CONFIG.maxBottomPosition - QUEUE_CONFIG.bottomItemSeparation;
-                // Calculate how many items we can show at minimum compression
-                const maxVisibleMiddleItems = Math.floor(availableSpace / (QUEUE_CONFIG.verticalSpacing * QUEUE_CONFIG.minCompressionRatio));
-                
-                if (compressionRatio < QUEUE_CONFIG.minCompressionRatio) {
-                    // We're at max compression, show only visible items
-                    if (index - 1 <= maxVisibleMiddleItems) {
-                        // This item is within visible range
-                        return bottomItemsHeight - (index - 1) * (QUEUE_CONFIG.verticalSpacing * QUEUE_CONFIG.minCompressionRatio);
-                    } else {
-                        // This item is beyond visible range, stack it with the last visible item
-                        return bottomItemsHeight - maxVisibleMiddleItems * (QUEUE_CONFIG.verticalSpacing * QUEUE_CONFIG.minCompressionRatio);
-                    }
-                } else {
-                    // Normal compression
-                    return Math.min(bottomItemsHeight - (index - 1) * effectiveSpacing, QUEUE_CONFIG.maxBottomPosition);
-                }
-            }
-        }
-    };
-
-    return (
-        <motion.div
-            initial={false}
-            animate={{ 
-                opacity: 1, 
-                scale: 1, 
-                y: getVerticalPosition(),
-                x: getHorizontalOffset()
-            }}
-            exit={exit}
-            className="absolute top-0 w-full"
-            style={{ zIndex: queueLength - index + 10 }}
-        >
-            <motion.div
-                animate={animation}
-                className="h-12 w-full bg-white border-2 rounded-lg flex items-center justify-center transform-gpu preserve-3d"
-            >
-                <span className="text-gray-700">{children || item.value}</span>
-            </motion.div>
-        </motion.div>
-    );
-};
-
-const Floor = ({ queueLength }: { queueLength: number }) => {
+const Floor = ({ stackLength }: { stackLength: number }) => {
     const getFloorPosition = () => {
-        if (queueLength === 0) return QUEUE_CONFIG.verticalSpacing + QUEUE_CONFIG.itemHeight;
+        if (stackLength === 0) return STACK_CONFIG.verticalSpacing + STACK_CONFIG.itemHeight;
         
         // Position floor below the last item
-        const lastItemPosition = Math.min(queueLength * QUEUE_CONFIG.verticalSpacing, QUEUE_CONFIG.maxBottomPosition);
-        const floorOffset = QUEUE_CONFIG.itemHeight + (QUEUE_CONFIG.verticalSpacing / 2);
-        return Math.min(lastItemPosition + floorOffset, QUEUE_CONFIG.maxBottomPosition + QUEUE_CONFIG.itemHeight);
+        const lastItemPosition = Math.min(stackLength * STACK_CONFIG.verticalSpacing, STACK_CONFIG.maxBottomPosition);
+        const floorOffset = STACK_CONFIG.itemHeight + (STACK_CONFIG.verticalSpacing / 2);
+        return Math.min(lastItemPosition + floorOffset, STACK_CONFIG.maxBottomPosition + STACK_CONFIG.itemHeight);
     };
 
     return (
@@ -248,26 +150,28 @@ const Floor = ({ queueLength }: { queueLength: number }) => {
     );
 };
 
-const EnqueuingAnimation = ({
+const PushingAnimation = ({
     position,
     value,
-    isFirstItem
+    isFirstItem,
+    stackLength
 }: {
     position: { x: number; y: number };
     value: string;
     isFirstItem: boolean;
+    stackLength: number;
 }) => (
     <motion.div
-        initial={{ x: position.x, y: position.y, scale: 1, opacity: 1, zIndex: 0, ...ANIMATION_CONFIG.ENQUEUE.initial }}
-        animate={{ x: isFirstItem ? 0 : -20, y: QUEUE_CONFIG.enqueueOffsetY, zIndex: 0, scale: 1, opacity: 1, ...ANIMATION_CONFIG.ENQUEUE.animate }}
+        initial={{ x: position.x, y: position.y, scale: 1, opacity: 1, zIndex: stackLength + 20, ...ANIMATION_CONFIG.PUSH.initial }}
+        animate={{ x: isFirstItem ? 0 : -20, y: STACK_CONFIG.pushOffsetY, zIndex: stackLength + 20, scale: 1, opacity: 1, ...ANIMATION_CONFIG.PUSH.animate }}
         transition={{
-            duration: ANIMATION_CONFIG.ENQUEUE.baseDuration,
-            backgroundColor: { delay: 0, duration: ANIMATION_CONFIG.ENQUEUE.baseDuration * 0.4 },
-            borderWidth: { delay: 0, duration: ANIMATION_CONFIG.ENQUEUE.baseDuration },
-            borderRadius: { delay: 0, duration: ANIMATION_CONFIG.ENQUEUE.baseDuration },
-            padding: { delay: 0, duration: ANIMATION_CONFIG.ENQUEUE.baseDuration },
-            boxShadow: { delay: 0, duration: ANIMATION_CONFIG.ENQUEUE.baseDuration },
-            width: { delay: 0, duration: ANIMATION_CONFIG.ENQUEUE.baseDuration },
+            duration: ANIMATION_CONFIG.PUSH.baseDuration,
+            backgroundColor: { delay: 0, duration: ANIMATION_CONFIG.PUSH.baseDuration * 0.4 },
+            borderWidth: { delay: 0, duration: ANIMATION_CONFIG.PUSH.baseDuration },
+            borderRadius: { delay: 0, duration: ANIMATION_CONFIG.PUSH.baseDuration },
+            padding: { delay: 0, duration: ANIMATION_CONFIG.PUSH.baseDuration },
+            boxShadow: { delay: 0, duration: ANIMATION_CONFIG.PUSH.baseDuration },
+            width: { delay: 0, duration: ANIMATION_CONFIG.PUSH.baseDuration },
         }}
         className="absolute border-gray-400 flex items-center justify-center"
     >
@@ -275,19 +179,19 @@ const EnqueuingAnimation = ({
     </motion.div>
 );
 
-export function Queue({ screenHeight }: AlgoComponentProps) {
-    const [actualQueue, setActualQueue] = useState<QueueItem[]>([]);
-    const [visibleQueue, setVisibleQueue] = useState<QueueItem[]>([]);
+export function Stack({ screenHeight }: AlgoComponentProps) {
+    const [actualStack, setActualStack] = useState<StackItem[]>([]);
+    const [visibleStack, setVisibleStack] = useState<StackItem[]>([]);
     const [inputValue, setInputValue] = useState("");
     const [nextId, setNextId] = useState(0);
-    const [isAnimatingEnqueue, setIsAnimatingEnqueue] = useState(false);
-    const [isAnimatingDequeue, setIsAnimatingDequeue] = useState(false);
+    const [isAnimatingPush, setIsAnimatingPush] = useState(false);
+    const [isAnimatingPop, setIsAnimatingPop] = useState(false);
     const [isAnimatingPeek, setIsAnimatingPeek] = useState(false);
     const [isAnimatingReset, setIsAnimatingReset] = useState(false);
     const [isInputShaking, setIsInputShaking] = useState(false);
-    const [dequeuingItem, setDequeuingItem] = useState<QueueItem | null>(null);
-    const [enqueuingValue, setEnqueuingValue] = useState("");
-    const [recentlyEnqueuedId, setRecentlyEnqueuedId] = useState<number | null>(null);
+    const [poppingItem, setPoppingItem] = useState<StackItem | null>(null);
+    const [pushingValue, setPushingValue] = useState("");
+    const [recentlyPushedId, setRecentlyPushedId] = useState<number | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const prevScreenHeightRef = useRef(screenHeight);
@@ -297,20 +201,20 @@ export function Queue({ screenHeight }: AlgoComponentProps) {
 
     // Adjust spacing based on container height
     const verticalSpacing = Math.min(16, Math.max(8, containerHeight / 20));
-    QUEUE_CONFIG.verticalSpacing = verticalSpacing;
+    STACK_CONFIG.verticalSpacing = verticalSpacing;
     // Leave space for the item height, floor line (0.5px) and some padding (16px)
-    QUEUE_CONFIG.maxBottomPosition = containerHeight - QUEUE_CONFIG.itemHeight - 16;
-    QUEUE_CONFIG.maxFloorOffset = QUEUE_CONFIG.maxBottomPosition;
-    QUEUE_CONFIG.topItemSeparation = Math.max(16, verticalSpacing * 2);
-    QUEUE_CONFIG.bottomItemSeparation = Math.max(16, verticalSpacing * 2);
+    STACK_CONFIG.maxBottomPosition = containerHeight - STACK_CONFIG.itemHeight - 16;
+    STACK_CONFIG.maxFloorOffset = STACK_CONFIG.maxBottomPosition;
+    STACK_CONFIG.topItemSeparation = Math.max(16, verticalSpacing * 2);
+    STACK_CONFIG.bottomItemSeparation = Math.max(16, verticalSpacing * 2);
 
     // Calculate maximum visible items based on available space
     const getMaxVisibleItems = () => {
-        const availableSpace = QUEUE_CONFIG.maxFloorOffset - QUEUE_CONFIG.verticalSpacing - QUEUE_CONFIG.bottomItemSeparation - QUEUE_CONFIG.topItemSeparation;
-        return Math.floor(availableSpace / (QUEUE_CONFIG.verticalSpacing * QUEUE_CONFIG.minCompressionRatio)) + 3;
+        const availableSpace = STACK_CONFIG.maxFloorOffset - STACK_CONFIG.verticalSpacing - STACK_CONFIG.bottomItemSeparation - STACK_CONFIG.topItemSeparation;
+        return Math.floor(availableSpace / (STACK_CONFIG.verticalSpacing * STACK_CONFIG.minCompressionRatio)) + 3;
     };
 
-    // Update visible queue only when screen height actually changes
+    // Update visible stack only when screen height actually changes
     useEffect(() => {
         if (prevScreenHeightRef.current === screenHeight) {
             return;
@@ -318,81 +222,81 @@ export function Queue({ screenHeight }: AlgoComponentProps) {
         
         const maxVisible = getMaxVisibleItems();
         
-        if (actualQueue.length <= maxVisible) {
-            setVisibleQueue(actualQueue);
+        if (actualStack.length <= maxVisible) {
+            setVisibleStack(actualStack);
         } else {
-            const startIndex = Math.max(0, actualQueue.length - maxVisible);
-            setVisibleQueue(actualQueue.slice(startIndex));
+            const startIndex = Math.max(0, actualStack.length - maxVisible);
+            setVisibleStack(actualStack.slice(startIndex));
         }
 
         prevScreenHeightRef.current = screenHeight;
-    }, [screenHeight, actualQueue]);
+    }, [screenHeight, actualStack]);
 
-    const handleEnqueue = () => {
-        if (!inputValue.trim() || isAnimatingEnqueue) return;
+    const handlePush = () => {
+        if (!inputValue.trim() || isAnimatingPush) return;
         const newItem = { id: nextId, value: inputValue.trim() };
-        setEnqueuingValue(inputValue.trim());
-        setIsAnimatingEnqueue(true);
+        setPushingValue(inputValue.trim());
+        setIsAnimatingPush(true);
         setInputValue("");
 
-        // Always add to actual queue
-        const newActualQueue = [...actualQueue, newItem];
-        setActualQueue(newActualQueue);
+        // Always add to actual stack
+        const newActualStack = [...actualStack, newItem];
+        setActualStack(newActualStack);
 
-        // Only add to visible queue if under max visible items
+        // Only add to visible stack if under max visible items
         const maxVisible = getMaxVisibleItems();
-        if (visibleQueue.length < maxVisible) {
+        if (visibleStack.length < maxVisible) {
             setTimeout(() => {
-                setVisibleQueue([...visibleQueue, newItem]);
+                setVisibleStack([...visibleStack, newItem]);
                 setNextId(nextId + 1);
-                setIsAnimatingEnqueue(false);
-                setEnqueuingValue("");
-                setRecentlyEnqueuedId(newItem.id);
+                setIsAnimatingPush(false);
+                setPushingValue("");
+                setRecentlyPushedId(newItem.id);
                 setTimeout(() => {
-                    setRecentlyEnqueuedId(null);
+                    setRecentlyPushedId(null);
                 }, 500);
-            }, ANIMATION_CONFIG.ENQUEUE.baseDuration * 1000);
+            }, ANIMATION_CONFIG.PUSH.baseDuration * 1000);
         } else {
             // Still wait for animation to complete before clearing states
             setTimeout(() => {
                 setNextId(nextId + 1);
-                setIsAnimatingEnqueue(false);
-                setEnqueuingValue("");
-            }, ANIMATION_CONFIG.ENQUEUE.baseDuration * 1000);
+                setIsAnimatingPush(false);
+                setPushingValue("");
+            }, ANIMATION_CONFIG.PUSH.baseDuration * 1000);
         }
     };
 
-    const handleDequeue = () => {
-        if (actualQueue.length === 0 || isAnimatingDequeue) return;
+    const handlePop = () => {
+        if (actualStack.length === 0 || isAnimatingPop) return;
 
-        // Always remove from actual queue
-        const [dequeuedItem, ...newActualQueue] = actualQueue;
-        setActualQueue(newActualQueue);
+        // Always remove from actual stack
+        const newActualStack = actualStack.slice(0, -1);
+        setActualStack(newActualStack);
 
-        // Handle visible queue
-        if (visibleQueue.length > 0) {
-            setDequeuingItem(visibleQueue[0]);
-            setIsAnimatingDequeue(true);
+        // Handle visible stack
+        if (visibleStack.length > 0) {
+            setPoppingItem(visibleStack[visibleStack.length - 1]);
+            setIsAnimatingPop(true);
 
             setTimeout(() => {
-                const [_, ...newVisibleQueue] = visibleQueue;
+                const newVisibleStack = visibleStack.slice(0, -1);
                 
-                // If we have more items in actual queue than visible queue can show,
-                // add the next item from actual queue to visible queue
+                // If we have more items in actual stack than visible stack can show,
+                // add the next item from actual stack to visible stack
                 const maxVisible = getMaxVisibleItems();
-                if (newActualQueue.length > newVisibleQueue.length && newVisibleQueue.length < maxVisible) {
-                    newVisibleQueue.push(newActualQueue[newVisibleQueue.length]);
+                if (newActualStack.length > newVisibleStack.length && newVisibleStack.length < maxVisible) {
+                    newVisibleStack.push(newActualStack[newVisibleStack.length - 1]);
                 }
                 
-                setVisibleQueue(newVisibleQueue);
-                setIsAnimatingDequeue(false);
-                setDequeuingItem(null);
-            }, ANIMATION_CONFIG.DEQUEUE.baseDuration * 1000);
+                setVisibleStack(newVisibleStack);
+                setIsAnimatingPop(false);
+                setPoppingItem(null);
+            }, ANIMATION_CONFIG.POP.baseDuration * 1000);
         }
     };
 
     const handlePeek = () => {
-        if (actualQueue.length === 0) return;
+        if (actualStack.length === 0) return;
         setIsAnimatingPeek(true);
         setTimeout(() => {
             setIsAnimatingPeek(false);
@@ -400,19 +304,19 @@ export function Queue({ screenHeight }: AlgoComponentProps) {
     };
 
     const handleReset = () => {
-        if (actualQueue.length === 0 || isAnimatingReset) return;
+        if (actualStack.length === 0 || isAnimatingReset) return;
         setIsAnimatingReset(true);
         
         setTimeout(() => {
-            setActualQueue([]);
-            setVisibleQueue([]);
+            setActualStack([]);
+            setVisibleStack([]);
             setIsAnimatingReset(false);
             inputRef.current?.focus();
         }, ANIMATION_CONFIG.RESET.initialDelay * 1000);
     };
 
     const handleAddRandom = () => {
-        if (isAnimatingEnqueue || isAnimatingDequeue || isAnimatingPeek) return;
+        if (isAnimatingPush || isAnimatingPop || isAnimatingPeek) return;
         
         const randomValues = Array.from({ length: 5 }, () => {
             const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -425,39 +329,39 @@ export function Queue({ screenHeight }: AlgoComponentProps) {
             value
         }));
 
-        // Add all items to actual queue
-        setActualQueue([...actualQueue, ...newItems]);
+        // Add all items to actual stack
+        setActualStack([...actualStack, ...newItems]);
 
-        // Add items to visible queue only if there's space
+        // Add items to visible stack only if there's space
         const maxVisible = getMaxVisibleItems();
-        const availableSpace = maxVisible - visibleQueue.length;
+        const availableSpace = maxVisible - visibleStack.length;
         if (availableSpace > 0) {
             const itemsToAdd = newItems.slice(0, availableSpace);
-            setVisibleQueue([...visibleQueue, ...itemsToAdd]);
+            setVisibleStack([...visibleStack, ...itemsToAdd]);
         }
 
         setNextId(nextId + 5);
     };
-    
-    const isButtonDisabled = (action: "Enqueue" | "Dequeue" | "Peek") => {
+
+    const isButtonDisabled = (action: "Push" | "Pop" | "Peek") => {
         const isAnimating = {
-            Enqueue: isAnimatingEnqueue,
-            Dequeue: isAnimatingDequeue,
+            Push: isAnimatingPush,
+            Pop: isAnimatingPop,
             Peek: isAnimatingPeek,
         };
 
         return (
-            (action === "Enqueue" &&
-                (!inputValue.trim() || (isAnimating.Enqueue && !BUTTON_CONFIG.ENQUEUE.btnEnabled[action]))) ||
-            (action === "Dequeue" &&
-                (actualQueue.length === 0 ||
-                    (isAnimating.Enqueue && !BUTTON_CONFIG.ENQUEUE.btnEnabled[action]) ||
-                    (isAnimating.Dequeue && !BUTTON_CONFIG.DEQUEUE.btnEnabled[action]) ||
+            (action === "Push" &&
+                (!inputValue.trim() || (isAnimating.Push && !BUTTON_CONFIG.PUSH.btnEnabled[action]))) ||
+            (action === "Pop" &&
+                (actualStack.length === 0 ||
+                    (isAnimating.Push && !BUTTON_CONFIG.PUSH.btnEnabled[action]) ||
+                    (isAnimating.Pop && !BUTTON_CONFIG.POP.btnEnabled[action]) ||
                     (isAnimating.Peek && !BUTTON_CONFIG.PEEK.btnEnabled[action]))) ||
             (action === "Peek" &&
-                (actualQueue.length === 0 ||
-                    (isAnimating.Enqueue && !BUTTON_CONFIG.ENQUEUE.btnEnabled[action]) ||
-                    (isAnimating.Dequeue && !BUTTON_CONFIG.DEQUEUE.btnEnabled[action]) ||
+                (actualStack.length === 0 ||
+                    (isAnimating.Push && !BUTTON_CONFIG.PUSH.btnEnabled[action]) ||
+                    (isAnimating.Pop && !BUTTON_CONFIG.POP.btnEnabled[action]) ||
                     (isAnimating.Peek && !BUTTON_CONFIG.PEEK.btnEnabled[action])))
         );
     };
@@ -483,28 +387,28 @@ export function Queue({ screenHeight }: AlgoComponentProps) {
                         setInputValue(newValue);
                     }}
                     onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !isButtonDisabled("Enqueue")) {
-                            handleEnqueue();
+                        if (e.key === 'Enter' && !isButtonDisabled("Push")) {
+                            handlePush();
                         }
                     }}
-                    disabled={isAnimatingEnqueue}
+                    disabled={isAnimatingPush}
                     className="px-4 py-2 border rounded shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:bg-gray-100 text-center w-full"
                     placeholder="Enter value..."
                 />
                 <div className="flex justify-center gap-2 w-full">
                     <button
-                        onClick={handleEnqueue}
-                        disabled={isButtonDisabled("Enqueue")}
+                        onClick={handlePush}
+                        disabled={isButtonDisabled("Push")}
                         className="px-4 py-2 bg-green-500 text-white rounded shadow hover:bg-green-600 transition-colors disabled:opacity-50 flex-1 min-w-[5rem]"
                     >
-                        Enqueue
+                        Push
                     </button>
                     <button
-                        onClick={handleDequeue}
-                        disabled={isButtonDisabled("Dequeue")}
+                        onClick={handlePop}
+                        disabled={isButtonDisabled("Pop")}
                         className="px-4 py-2 bg-red-500 text-white rounded shadow hover:bg-red-600 transition-colors disabled:opacity-50 flex-1 min-w-[5rem]"
                     >
-                        Dequeue
+                        Pop
                     </button>
                     <button
                         onClick={handlePeek}
@@ -520,31 +424,32 @@ export function Queue({ screenHeight }: AlgoComponentProps) {
                     <span className="w-[120px] text-right">
                         <button
                             onClick={handleReset}
-                            disabled={actualQueue.length === 0 || isAnimatingReset || isAnimatingEnqueue || isAnimatingDequeue || isAnimatingPeek}
+                            disabled={actualStack.length === 0 || isAnimatingReset || isAnimatingPush || isAnimatingPop || isAnimatingPeek}
                             className="text-gray-500 hover:text-gray-700 disabled:opacity-40 disabled:hover:text-gray-500 transition-colors"
                         >
-                            Reset Queue
+                            Reset Stack
                         </button>
                     </span>
                     <span className="w-[20px] text-center text-gray-300">|</span>
                     <span className="w-[120px] text-left">
                         <button
                             onClick={handleAddRandom}
-                            disabled={isAnimatingEnqueue || isAnimatingDequeue || isAnimatingPeek}
+                            disabled={isAnimatingPush || isAnimatingPop || isAnimatingPeek}
                             className="text-gray-500 hover:text-gray-700 disabled:opacity-40 disabled:hover:text-gray-500 transition-colors"
                         >
                             Add Random
                         </button>
                     </span>
                 </div>
-                <p className="text-gray-600 font-medium">Queue Size: {actualQueue.length}</p>
+                <p className="text-gray-600 font-medium">Stack Size: {actualStack.length}</p>
             </div>
 
-            {isAnimatingEnqueue && (
-                <EnqueuingAnimation 
+            {isAnimatingPush && (
+                <PushingAnimation 
                     position={{x:0,y:0}} 
-                    value={enqueuingValue} 
-                    isFirstItem={actualQueue.length === 1}
+                    value={pushingValue} 
+                    isFirstItem={actualStack.length === 1}
+                    stackLength={visibleStack.length}
                 />
             )}
 
@@ -562,78 +467,82 @@ export function Queue({ screenHeight }: AlgoComponentProps) {
                     alignItems: "start",
                     justifyContent: "center"
                 }}>
-                    <Floor queueLength={visibleQueue.length} />
+                    <Floor stackLength={visibleStack.length} />
                     <AnimatePresence>
-                        {visibleQueue.map((item, index) => {
-                            const isBottom = index === 0; // First item is at the bottom
-                            const isDequeuing = isBottom && dequeuingItem?.id === item.id;
-                            const isPeeking = isBottom && isAnimatingPeek;
-                            const borderColor = isBottom && !isAnimatingEnqueue ? "#9CA3AF" : "#E5E7EB";
+                        {visibleStack.map((item, index) => {
+                            const isTop = index === visibleStack.length - 1; // Last item is at the top
+                            const isPopping = isTop && poppingItem?.id === item.id;
+                            const isPeeking = isTop && isAnimatingPeek;
+                            const borderColor = isTop && !isAnimatingPush ? "#9CA3AF" : "#E5E7EB";
 
                             if (isAnimatingReset) {
                                 const randomRotation = Math.random() * 60 - 30;
                                 const randomXdrift = Math.random() * 100 - 50;
                                 return (
-                                    <QueueItemMotionWrapper
+                                    <StackItemMotionWrapper
                                         key={item.id}
                                         item={item}
                                         index={index}
-                                        queueLength={visibleQueue.length}
+                                        stackLength={visibleStack.length}
                                         animation={ANIMATION_CONFIG.DEFAULT}
+                                        config={STACK_CONFIG}
                                         exit={{
                                             ...ANIMATION_CONFIG.RESET.exit,
                                             rotate: randomRotation,
                                             x: randomXdrift,
                                             transition: {
                                                 ...ANIMATION_CONFIG.RESET.exit.transition,
-                                                delay: index * (ANIMATION_CONFIG.RESET.totalDuration / visibleQueue.length),
+                                                delay: index * (ANIMATION_CONFIG.RESET.totalDuration / visibleStack.length),
                                             },
                                         }}
                                     >
                                         {item.value}
-                                    </QueueItemMotionWrapper>
+                                    </StackItemMotionWrapper>
                                 );
                             }
 
-                            if (isDequeuing) {
+                            if (isPopping) {
                                 return (
-                                    <QueueItemMotionWrapper
+                                    <StackItemMotionWrapper
                                         key={item.id}
                                         item={item}
                                         index={index}
-                                        queueLength={visibleQueue.length}
-                                        animation={ANIMATION_CONFIG.DEQUEUE.animate}
-                                        exit={ANIMATION_CONFIG.DEQUEUE.exit}
+                                        stackLength={visibleStack.length}
+                                        animation={ANIMATION_CONFIG.POP.animate}
+                                        config={STACK_CONFIG}
+                                        exit={ANIMATION_CONFIG.POP.exit}
                                     >
                                         {item.value}
-                                    </QueueItemMotionWrapper>
+                                    </StackItemMotionWrapper>
                                 );
                             }
 
                             if (isPeeking) {
                                 return (
-                                    <QueueItemMotionWrapper
+                                    <StackItemMotionWrapper
                                         key={item.id}
                                         item={item}
                                         index={index}
-                                        queueLength={visibleQueue.length}
+                                        stackLength={visibleStack.length}
                                         animation={ANIMATION_CONFIG.PEEK}
+                                        config={STACK_CONFIG}
                                     >
                                         {item.value}
-                                    </QueueItemMotionWrapper>
+                                    </StackItemMotionWrapper>
                                 );
                             }
 
                             return (
-                                <QueueItemMotionWrapper
+                                <StackItemMotionWrapper
                                     key={item.id}
                                     item={item}
                                     index={index}
-                                    queueLength={visibleQueue.length}
+                                    stackLength={visibleStack.length}
                                     animation={{ ...ANIMATION_CONFIG.DEFAULT, borderColor }}
+                                    config={STACK_CONFIG}
                                 >
-                                    {item.id === recentlyEnqueuedId ? item.value : "..."}
-                                </QueueItemMotionWrapper>
+                                    {item.id === recentlyPushedId ? item.value : "..."}
+                                </StackItemMotionWrapper>
                             );
                         })}
                     </AnimatePresence>
@@ -643,4 +552,4 @@ export function Queue({ screenHeight }: AlgoComponentProps) {
     );
 }
 
-export default Queue;  
+export default Stack;
