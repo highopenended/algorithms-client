@@ -10,8 +10,9 @@ interface StackItem {
 // Config constants
 const STACK_CONFIG = {
     verticalSpacing: 16,
-    pushOffsetY: "-3rem",
+    pushOffsetY: "12rem",
     maxFloorOffset: 320, // Maximum distance the floor can move down (in pixels)
+    maxBottomPosition: 0, // Will be set dynamically based on screen height
     itemHeight: 48, // Height of each item (3rem = 48px)
     minSpacing: 8, // Minimum spacing between items when compressed
     topItemSeparation: 32, // Constant separation for top item
@@ -29,7 +30,7 @@ const BUTTON_CONFIG = {
 // Animation constants
 const ANIMATION_CONFIG = {
     PUSH: {
-        baseDuration: 0.2,
+        baseDuration: 0.4,
         initial: {
             backgroundColor: "rgba(255, 255, 255, 0)",
             borderWidth: 0,
@@ -43,7 +44,7 @@ const ANIMATION_CONFIG = {
             backgroundColor: "rgba(255, 255, 255, 1)",
             borderWidth: "0.125rem",
             borderRadius: "0.5rem",
-            padding: "1rem",
+            padding: "0.5rem",
             boxShadow:
                 "0 0.25rem 0.375rem -0.0625rem rgba(0, 0, 0, 0.1), 0 0.125rem 0.25rem -0.0625rem rgba(0, 0, 0, 0.06)",
             width: "16rem",
@@ -101,15 +102,15 @@ const ANIMATION_CONFIG = {
     PEEK: {
         baseDuration: 1,
         scale: 1.1,
-        y: "0.25rem",
-        x:"0.5rem",
+        y: "-0.25rem",
+        x: "1.75rem",
         borderColor: "#2563EB",
         boxShadow: "0 0 15px 5px rgba(37, 99, 235, 0.3)",
         transition: { duration: 0.2, ease: "easeOut" },
     },
     RESET: {
-        totalDuration: 1, // Total time for the entire reset animation
-        initialDelay: 0, // Initial delay before animation starts
+        totalDuration: 1,
+        initialDelay: 0,
         exit: {
             y: 1000,
             rotate: 45,
@@ -143,67 +144,48 @@ const StackItemMotionWrapper = ({
     exit?: any;
     children?: React.ReactNode;
 }) => {
+    const getHorizontalOffset = () => {
+        return 0; // All items are aligned
+    };
+
     // Calculate vertical spacing based on stack size
     const getVerticalPosition = () => {
-        const maxItemsAtNormalSpacing = Math.floor(STACK_CONFIG.maxFloorOffset / STACK_CONFIG.verticalSpacing);
+        const maxItemsAtNormalSpacing = Math.floor(STACK_CONFIG.maxBottomPosition / STACK_CONFIG.verticalSpacing);
         
         if (stackLength <= maxItemsAtNormalSpacing) {
-            // Normal spacing
-            return (stackLength - index) * STACK_CONFIG.verticalSpacing;
-        }
-        
-        // Calculate available space and required spacing
-        const availableSpace = STACK_CONFIG.maxFloorOffset - STACK_CONFIG.verticalSpacing - STACK_CONFIG.bottomItemSeparation - STACK_CONFIG.topItemSeparation;
-        const middleItemCount = stackLength - 3; // Excluding top, bottom, and second-from-bottom items
-        const requiredSpacing = availableSpace / middleItemCount;
-        
-        // Calculate compression ratio
-        const compressionRatio = requiredSpacing / STACK_CONFIG.verticalSpacing;
-        
-        // If compression would exceed minimum ratio, use minimum spacing
-        const effectiveSpacing = compressionRatio < STACK_CONFIG.minCompressionRatio
-            ? STACK_CONFIG.verticalSpacing * STACK_CONFIG.minCompressionRatio
-            : requiredSpacing;
-
-        // Position items based on their role
-        if (index === 0) {
-            // Bottom item
-            return STACK_CONFIG.maxFloorOffset;
-        } else if (index === 1) {
-            // Second from bottom item
-            return STACK_CONFIG.maxFloorOffset - STACK_CONFIG.bottomItemSeparation;
-        } else if (index === stackLength - 1) {
-            // Top item - keep it at a fixed distance from maxFloorOffset
-            return STACK_CONFIG.verticalSpacing;
+            // Normal spacing - evenly spaced items
+            return Math.min((stackLength - index) * STACK_CONFIG.verticalSpacing, STACK_CONFIG.maxBottomPosition);
         } else {
-            // Middle items use effective spacing
-            const bottomItemsHeight = STACK_CONFIG.maxFloorOffset - STACK_CONFIG.bottomItemSeparation;
-            // Calculate how many items we can show at minimum compression
-            const maxVisibleMiddleItems = Math.floor(availableSpace / (STACK_CONFIG.verticalSpacing * STACK_CONFIG.minCompressionRatio));
+            // Calculate available space and required spacing for compression
+            const availableSpace = STACK_CONFIG.maxBottomPosition;
+            const requiredSpacing = availableSpace / (stackLength - 1);
             
-            if (compressionRatio < STACK_CONFIG.minCompressionRatio) {
-                // We're at max compression, show only visible items
-                if (index - 1 <= maxVisibleMiddleItems) {
-                    // This item is within visible range
-                    return bottomItemsHeight - (index - 1) * (STACK_CONFIG.verticalSpacing * STACK_CONFIG.minCompressionRatio);
-                } else {
-                    // This item is beyond visible range, stack it with the last visible item
-                    return bottomItemsHeight - maxVisibleMiddleItems * (STACK_CONFIG.verticalSpacing * STACK_CONFIG.minCompressionRatio);
-                }
-            } else {
-                // Normal compression
-                return bottomItemsHeight - (index - 1) * effectiveSpacing;
-            }
+            // Calculate compression ratio
+            const compressionRatio = requiredSpacing / STACK_CONFIG.verticalSpacing;
+            
+            // If compression would exceed minimum ratio, use minimum spacing
+            const effectiveSpacing = Math.max(
+                STACK_CONFIG.verticalSpacing * STACK_CONFIG.minCompressionRatio,
+                requiredSpacing
+            );
+
+            // Position all items with even spacing
+            return Math.min((stackLength - index) * effectiveSpacing, STACK_CONFIG.maxBottomPosition);
         }
     };
 
     return (
         <motion.div
             initial={false}
-            animate={{ opacity: 1, scale: 1, y: getVerticalPosition() }}
+            animate={{ 
+                opacity: 1, 
+                scale: 1, 
+                y: getVerticalPosition(),
+                x: getHorizontalOffset()
+            }}
             exit={exit}
-            className="absolute bottom-0 w-full"
-            style={{ zIndex: index }}
+            className="absolute top-0 w-full"
+            style={{ zIndex: index + 10 }}
         >
             <motion.div
                 animate={animation}
@@ -217,15 +199,19 @@ const StackItemMotionWrapper = ({
 
 const Floor = ({ stackLength }: { stackLength: number }) => {
     const getFloorPosition = () => {
-        const normalPosition = stackLength * STACK_CONFIG.verticalSpacing;
-        return Math.min(normalPosition, STACK_CONFIG.maxFloorOffset) + 2;
+        if (stackLength === 0) return STACK_CONFIG.verticalSpacing + STACK_CONFIG.itemHeight;
+        
+        // Position floor below the last item
+        const lastItemPosition = Math.min(stackLength * STACK_CONFIG.verticalSpacing, STACK_CONFIG.maxBottomPosition);
+        const floorOffset = STACK_CONFIG.itemHeight + (STACK_CONFIG.verticalSpacing / 2);
+        return Math.min(lastItemPosition + floorOffset, STACK_CONFIG.maxBottomPosition + STACK_CONFIG.itemHeight);
     };
 
     return (
         <motion.div
             initial={false}
             animate={{ y: getFloorPosition() }}
-            className="absolute bottom-0 w-[120%] h-[0.5px] bg-gray-700 left-[-10%]"
+            className="absolute top-0 w-[120%] h-[0.5px] bg-gray-700 left-[-10%]"
             style={{ zIndex: -1 }}
         />
     );
@@ -234,15 +220,17 @@ const Floor = ({ stackLength }: { stackLength: number }) => {
 const PushingAnimation = ({
     position,
     value,
-    zIndex,
+    isFirstItem,
+    stackLength
 }: {
     position: { x: number; y: number };
     value: string;
-    zIndex: number;
+    isFirstItem: boolean;
+    stackLength: number;
 }) => (
     <motion.div
-        initial={{ x: position.x, y: position.y, scale: 1, opacity: 1, ...ANIMATION_CONFIG.PUSH.initial }}
-        animate={{ x: 0, y: STACK_CONFIG.pushOffsetY, zIndex, scale: 1, opacity: 1, ...ANIMATION_CONFIG.PUSH.animate }}
+        initial={{ x: position.x, y: position.y, scale: 1, opacity: 1, zIndex: stackLength + 20, ...ANIMATION_CONFIG.PUSH.initial }}
+        animate={{ x: isFirstItem ? 0 : -20, y: STACK_CONFIG.pushOffsetY, zIndex: stackLength + 20, scale: 1, opacity: 1, ...ANIMATION_CONFIG.PUSH.animate }}
         transition={{
             duration: ANIMATION_CONFIG.PUSH.baseDuration,
             backgroundColor: { delay: 0, duration: ANIMATION_CONFIG.PUSH.baseDuration * 0.4 },
@@ -252,14 +240,15 @@ const PushingAnimation = ({
             boxShadow: { delay: 0, duration: ANIMATION_CONFIG.PUSH.baseDuration },
             width: { delay: 0, duration: ANIMATION_CONFIG.PUSH.baseDuration },
         }}
-        className="absolute z-10 border-gray-400 flex items-center justify-center"
+        className="absolute border-gray-400 flex items-center justify-center"
     >
         <span className="text-gray-700">{value}</span>
     </motion.div>
 );
 
 export function Stack({ screenHeight }: AlgoComponentProps) {
-    const [stack, setStack] = useState<StackItem[]>([]);
+    const [actualStack, setActualStack] = useState<StackItem[]>([]);
+    const [visibleStack, setVisibleStack] = useState<StackItem[]>([]);
     const [inputValue, setInputValue] = useState("");
     const [nextId, setNextId] = useState(0);
     const [isAnimatingPush, setIsAnimatingPush] = useState(false);
@@ -272,27 +261,43 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
     const [recentlyPushedId, setRecentlyPushedId] = useState<number | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+    const prevScreenHeightRef = useRef(screenHeight);
 
     // Calculate container height based on screen height
-    const containerHeight = Math.max(300, screenHeight - 280); // 280px accounts for padding, buttons, and other UI elements
-    const visualizationHeight = containerHeight - 80; // 80px for padding and spacing
+    const containerHeight = Math.max(300, screenHeight - 280);
 
     // Adjust spacing based on container height
-    const verticalSpacing = Math.min(16, Math.max(8, visualizationHeight / 20)); // Dynamic spacing between 8-16px
+    const verticalSpacing = Math.min(16, Math.max(8, containerHeight / 20));
     STACK_CONFIG.verticalSpacing = verticalSpacing;
-    STACK_CONFIG.maxFloorOffset = Math.min(320, visualizationHeight * 0.8); // 80% of visualization height
+    // Leave space for the item height, floor line (0.5px) and some padding (16px)
+    STACK_CONFIG.maxBottomPosition = containerHeight - STACK_CONFIG.itemHeight - 16;
+    STACK_CONFIG.maxFloorOffset = STACK_CONFIG.maxBottomPosition;
     STACK_CONFIG.topItemSeparation = Math.max(16, verticalSpacing * 2);
     STACK_CONFIG.bottomItemSeparation = Math.max(16, verticalSpacing * 2);
 
-    // Calculate delay per item for reset animation
-    const resetDelayPerItem = stack.length > 1 
-        ? ANIMATION_CONFIG.RESET.totalDuration / (stack.length - 1)
-        : 0;
+    // Calculate maximum visible items based on available space
+    const getMaxVisibleItems = () => {
+        const availableSpace = STACK_CONFIG.maxFloorOffset - STACK_CONFIG.verticalSpacing - STACK_CONFIG.bottomItemSeparation - STACK_CONFIG.topItemSeparation;
+        return Math.floor(availableSpace / (STACK_CONFIG.verticalSpacing * STACK_CONFIG.minCompressionRatio)) + 3;
+    };
 
-    // Focus input on component mount and whenever animations complete
+    // Update visible stack only when screen height actually changes
     useEffect(() => {
-        inputRef.current?.focus();
-    }, [isAnimatingPush, isAnimatingPop, isAnimatingPeek]);
+        if (prevScreenHeightRef.current === screenHeight) {
+            return;
+        }
+        
+        const maxVisible = getMaxVisibleItems();
+        
+        if (actualStack.length <= maxVisible) {
+            setVisibleStack(actualStack);
+        } else {
+            const startIndex = Math.max(0, actualStack.length - maxVisible);
+            setVisibleStack(actualStack.slice(startIndex));
+        }
+
+        prevScreenHeightRef.current = screenHeight;
+    }, [screenHeight, actualStack]);
 
     const handlePush = () => {
         if (!inputValue.trim() || isAnimatingPush) return;
@@ -300,32 +305,65 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
         setPushingValue(inputValue.trim());
         setIsAnimatingPush(true);
         setInputValue("");
-        setTimeout(() => {
-            setStack([...stack, newItem]);
-            setNextId(nextId + 1);
-            setIsAnimatingPush(false);
-            setPushingValue("");
-            setRecentlyPushedId(newItem.id);
+
+        // Always add to actual stack
+        const newActualStack = [...actualStack, newItem];
+        setActualStack(newActualStack);
+
+        // Only add to visible stack if under max visible items
+        const maxVisible = getMaxVisibleItems();
+        if (visibleStack.length < maxVisible) {
             setTimeout(() => {
-                setRecentlyPushedId(null);
-            }, 500);
-        }, ANIMATION_CONFIG.PUSH.baseDuration * 1000);
+                setVisibleStack([...visibleStack, newItem]);
+                setNextId(nextId + 1);
+                setIsAnimatingPush(false);
+                setPushingValue("");
+                setRecentlyPushedId(newItem.id);
+                setTimeout(() => {
+                    setRecentlyPushedId(null);
+                }, 500);
+            }, ANIMATION_CONFIG.PUSH.baseDuration * 1000);
+        } else {
+            // Still wait for animation to complete before clearing states
+            setTimeout(() => {
+                setNextId(nextId + 1);
+                setIsAnimatingPush(false);
+                setPushingValue("");
+            }, ANIMATION_CONFIG.PUSH.baseDuration * 1000);
+        }
     };
 
     const handlePop = () => {
-        if (stack.length === 0 || isAnimatingPop) return;
-        const itemToPop = stack[stack.length - 1];
-        setPoppingItem(itemToPop);
-        setIsAnimatingPop(true);
-        setTimeout(() => {
-            setStack(stack.slice(0, -1));
-            setIsAnimatingPop(false);
-            setPoppingItem(null);
-        }, ANIMATION_CONFIG.POP.baseDuration * 1000);
+        if (actualStack.length === 0 || isAnimatingPop) return;
+
+        // Always remove from actual stack
+        const newActualStack = actualStack.slice(0, -1);
+        setActualStack(newActualStack);
+
+        // Handle visible stack
+        if (visibleStack.length > 0) {
+            setPoppingItem(visibleStack[visibleStack.length - 1]);
+            setIsAnimatingPop(true);
+
+            setTimeout(() => {
+                const newVisibleStack = visibleStack.slice(0, -1);
+                
+                // If we have more items in actual stack than visible stack can show,
+                // add the next item from actual stack to visible stack
+                const maxVisible = getMaxVisibleItems();
+                if (newActualStack.length > newVisibleStack.length && newVisibleStack.length < maxVisible) {
+                    newVisibleStack.push(newActualStack[newVisibleStack.length - 1]);
+                }
+                
+                setVisibleStack(newVisibleStack);
+                setIsAnimatingPop(false);
+                setPoppingItem(null);
+            }, ANIMATION_CONFIG.POP.baseDuration * 1000);
+        }
     };
 
     const handlePeek = () => {
-        if (stack.length === 0) return;
+        if (actualStack.length === 0) return;
         setIsAnimatingPeek(true);
         setTimeout(() => {
             setIsAnimatingPeek(false);
@@ -333,12 +371,12 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
     };
 
     const handleReset = () => {
-        if (stack.length === 0 || isAnimatingReset) return;
+        if (actualStack.length === 0 || isAnimatingReset) return;
         setIsAnimatingReset(true);
         
-        // Clear the stack after the initial delay
         setTimeout(() => {
-            setStack([]);
+            setActualStack([]);
+            setVisibleStack([]);
             setIsAnimatingReset(false);
             inputRef.current?.focus();
         }, ANIMATION_CONFIG.RESET.initialDelay * 1000);
@@ -347,36 +385,29 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
     const handleAddRandom = () => {
         if (isAnimatingPush || isAnimatingPop || isAnimatingPeek) return;
         
-        // Generate 5 random values
         const randomValues = Array.from({ length: 5 }, () => {
             const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-            const length = Math.floor(Math.random() * 3) + 1; // 1-3 characters
+            const length = Math.floor(Math.random() * 3) + 1;
             return Array.from({ length }, () => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
         });
 
-        // Create new stack items and add them to existing stack
         const newItems = randomValues.map((value, index) => ({
             id: nextId + index,
             value
         }));
 
-        setNextId(nextId + 5);
-        setStack([...stack, ...newItems]);
-    };
+        // Add all items to actual stack
+        setActualStack([...actualStack, ...newItems]);
 
-    const getInputPosition = () => {
-        if (!inputRef.current || !containerRef.current) return { x: 0, y: 0 };
-        const inputRect = inputRef.current.getBoundingClientRect();
-        const containerRect = containerRef.current.getBoundingClientRect();
-        
-        // Calculate center of input relative to container
-        const x = (inputRect.left + inputRect.width / 2) - (containerRect.left + containerRect.width / 2);
-        
-        // Calculate vertical position to start from input's center
-        const y = (inputRect.top-inputRect.height) - (containerRect.top + inputRect.height/2);
-        
-        
-        return { x, y };
+        // Add items to visible stack only if there's space
+        const maxVisible = getMaxVisibleItems();
+        const availableSpace = maxVisible - visibleStack.length;
+        if (availableSpace > 0) {
+            const itemsToAdd = newItems.slice(0, availableSpace);
+            setVisibleStack([...visibleStack, ...itemsToAdd]);
+        }
+
+        setNextId(nextId + 5);
     };
 
     const isButtonDisabled = (action: "Push" | "Pop" | "Peek") => {
@@ -390,12 +421,12 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
             (action === "Push" &&
                 (!inputValue.trim() || (isAnimating.Push && !BUTTON_CONFIG.PUSH.btnEnabled[action]))) ||
             (action === "Pop" &&
-                (stack.length === 0 ||
+                (actualStack.length === 0 ||
                     (isAnimating.Push && !BUTTON_CONFIG.PUSH.btnEnabled[action]) ||
                     (isAnimating.Pop && !BUTTON_CONFIG.POP.btnEnabled[action]) ||
                     (isAnimating.Peek && !BUTTON_CONFIG.PEEK.btnEnabled[action]))) ||
             (action === "Peek" &&
-                (stack.length === 0 ||
+                (actualStack.length === 0 ||
                     (isAnimating.Push && !BUTTON_CONFIG.PUSH.btnEnabled[action]) ||
                     (isAnimating.Pop && !BUTTON_CONFIG.POP.btnEnabled[action]) ||
                     (isAnimating.Peek && !BUTTON_CONFIG.PEEK.btnEnabled[action])))
@@ -460,7 +491,7 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
                     <span className="w-[120px] text-right">
                         <button
                             onClick={handleReset}
-                            disabled={stack.length === 0 || isAnimatingReset || isAnimatingPush || isAnimatingPop || isAnimatingPeek}
+                            disabled={actualStack.length === 0 || isAnimatingReset || isAnimatingPush || isAnimatingPop || isAnimatingPeek}
                             className="text-gray-500 hover:text-gray-700 disabled:opacity-40 disabled:hover:text-gray-500 transition-colors"
                         >
                             Reset Stack
@@ -477,46 +508,49 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
                         </button>
                     </span>
                 </div>
-                <p className="text-gray-600 font-medium">Stack Size: {stack.length}</p>
+                <p className="text-gray-600 font-medium">Stack Size: {actualStack.length}</p>
             </div>
+
+            {isAnimatingPush && (
+                <PushingAnimation 
+                    position={{x:0,y:0}} 
+                    value={pushingValue} 
+                    isFirstItem={actualStack.length === 1}
+                    stackLength={visibleStack.length}
+                />
+            )}
 
             <div 
                 ref={containerRef} 
-                className="relative w-full max-w-md flex items-center justify-center" 
+                className="relative w-full max-w-md flex items-start justify-center" 
                 style={{ 
                     height: containerHeight,
-                    perspective: "1000px",
-                    overflow: "hidden"
+                    perspective: "1000px"
                 }}
             >
-                {isAnimatingPush && (
-                    <PushingAnimation position={getInputPosition()} value={pushingValue} zIndex={stack.length + 1} />
-                )}
-
                 <div className="relative w-64" style={{ 
-                    transformStyle: "preserve-3d", 
-                    height: visualizationHeight,
+                    transformStyle: "preserve-3d",
                     display: "flex",
-                    alignItems: "center",
+                    alignItems: "start",
                     justifyContent: "center"
                 }}>
-                    <Floor stackLength={stack.length} />
+                    <Floor stackLength={visibleStack.length} />
                     <AnimatePresence>
-                        {stack.map((item, index) => {
-                            const isTop = index === stack.length - 1;
+                        {visibleStack.map((item, index) => {
+                            const isTop = index === visibleStack.length - 1; // Last item is at the top
                             const isPopping = isTop && poppingItem?.id === item.id;
                             const isPeeking = isTop && isAnimatingPeek;
                             const borderColor = isTop && !isAnimatingPush ? "#9CA3AF" : "#E5E7EB";
 
                             if (isAnimatingReset) {
-                                const randomRotation = Math.random() * 60 - 30; // Random value between -30 and 30
-                                const randomXdrift = Math.random() * 100 - 50 // Random value between -25 and 25
+                                const randomRotation = Math.random() * 60 - 30;
+                                const randomXdrift = Math.random() * 100 - 50;
                                 return (
                                     <StackItemMotionWrapper
                                         key={item.id}
                                         item={item}
                                         index={index}
-                                        stackLength={stack.length}
+                                        stackLength={visibleStack.length}
                                         animation={ANIMATION_CONFIG.DEFAULT}
                                         exit={{
                                             ...ANIMATION_CONFIG.RESET.exit,
@@ -524,7 +558,7 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
                                             x: randomXdrift,
                                             transition: {
                                                 ...ANIMATION_CONFIG.RESET.exit.transition,
-                                                delay: index * resetDelayPerItem,
+                                                delay: index * (ANIMATION_CONFIG.RESET.totalDuration / visibleStack.length),
                                             },
                                         }}
                                     >
@@ -539,7 +573,7 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
                                         key={item.id}
                                         item={item}
                                         index={index}
-                                        stackLength={stack.length}
+                                        stackLength={visibleStack.length}
                                         animation={ANIMATION_CONFIG.POP.animate}
                                         exit={ANIMATION_CONFIG.POP.exit}
                                     >
@@ -548,14 +582,13 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
                                 );
                             }
 
-                            // Peeking animation
                             if (isPeeking) {
                                 return (
                                     <StackItemMotionWrapper
                                         key={item.id}
                                         item={item}
                                         index={index}
-                                        stackLength={stack.length}
+                                        stackLength={visibleStack.length}
                                         animation={ANIMATION_CONFIG.PEEK}
                                     >
                                         {item.value}
@@ -563,13 +596,12 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
                                 );
                             }
 
-                            // Default animation
                             return (
                                 <StackItemMotionWrapper
                                     key={item.id}
                                     item={item}
                                     index={index}
-                                    stackLength={stack.length}
+                                    stackLength={visibleStack.length}
                                     animation={{ ...ANIMATION_CONFIG.DEFAULT, borderColor }}
                                 >
                                     {item.id === recentlyPushedId ? item.value : "..."}

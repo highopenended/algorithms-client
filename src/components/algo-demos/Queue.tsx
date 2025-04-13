@@ -30,7 +30,7 @@ const BUTTON_CONFIG = {
 // Animation constants
 const ANIMATION_CONFIG = {
     ENQUEUE: {
-        baseDuration: 0.4,
+        baseDuration: 0.99,
         initial: {
             backgroundColor: "rgba(255, 255, 255, 0)",
             borderWidth: 0,
@@ -438,18 +438,7 @@ export function Queue({ screenHeight }: AlgoComponentProps) {
 
         setNextId(nextId + 5);
     };
-
-    const getInputPosition = () => {
-        if (!inputRef.current || !containerRef.current) return { x: 0, y: 0 };
-        const inputRect = inputRef.current.getBoundingClientRect();
-        const containerRect = containerRef.current.getBoundingClientRect();
-        
-        const x = (inputRect.left + inputRect.width / 2) - (containerRect.left + containerRect.width / 2);
-        const y = (inputRect.top-inputRect.height) - (containerRect.top + inputRect.height/2);
-        
-        return { x, y };
-    };
-
+    
     const isButtonDisabled = (action: "Enqueue" | "Dequeue" | "Peek") => {
         const isAnimating = {
             Enqueue: isAnimatingEnqueue,
@@ -553,7 +542,7 @@ export function Queue({ screenHeight }: AlgoComponentProps) {
 
             {isAnimatingEnqueue && (
                 <EnqueuingAnimation 
-                    position={getInputPosition()} 
+                    position={{x:0,y:0}} 
                     value={enqueuingValue} 
                     isFirstItem={actualQueue.length === 1}
                 />
