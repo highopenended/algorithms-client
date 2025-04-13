@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AlgoComponentProps } from "../../../types/algo.types";
-import { StackItemMotionWrapper } from "./StackItemMotionWrapper.tsx";
+import MotionWrapper from "./MotionWrapper.tsx";
 
 interface StackItem {
     id: number;
@@ -479,7 +479,7 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
                                 const randomRotation = Math.random() * 60 - 30;
                                 const randomXdrift = Math.random() * 100 - 50;
                                 return (
-                                    <StackItemMotionWrapper
+                                    <MotionWrapper
                                         key={item.id}
                                         item={item}
                                         index={index}
@@ -497,13 +497,13 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
                                         }}
                                     >
                                         {item.value}
-                                    </StackItemMotionWrapper>
+                                    </MotionWrapper>
                                 );
                             }
 
                             if (isPopping) {
                                 return (
-                                    <StackItemMotionWrapper
+                                    <MotionWrapper
                                         key={item.id}
                                         item={item}
                                         index={index}
@@ -513,13 +513,13 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
                                         exit={ANIMATION_CONFIG.POP.exit}
                                     >
                                         {item.value}
-                                    </StackItemMotionWrapper>
+                                    </MotionWrapper>
                                 );
                             }
 
                             if (isPeeking) {
                                 return (
-                                    <StackItemMotionWrapper
+                                    <MotionWrapper
                                         key={item.id}
                                         item={item}
                                         index={index}
@@ -528,12 +528,12 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
                                         config={STACK_CONFIG}
                                     >
                                         {item.value}
-                                    </StackItemMotionWrapper>
+                                    </MotionWrapper>
                                 );
                             }
 
                             return (
-                                <StackItemMotionWrapper
+                                <MotionWrapper
                                     key={item.id}
                                     item={item}
                                     index={index}
@@ -542,7 +542,7 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
                                     config={STACK_CONFIG}
                                 >
                                     {item.id === recentlyPushedId ? item.value : "..."}
-                                </StackItemMotionWrapper>
+                                </MotionWrapper>
                             );
                         })}
                     </AnimatePresence>
