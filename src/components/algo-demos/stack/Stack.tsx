@@ -76,6 +76,13 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const prevScreenHeightRef = useRef(screenHeight);
 
+    // Auto-focus input field when animations complete
+    useEffect(() => {
+        if (!isAnimatingPush && !isAnimatingPop && !isAnimatingPeek && !isAnimatingReset) {
+            inputRef.current?.focus();
+        }
+    }, [isAnimatingPush, isAnimatingPop, isAnimatingPeek, isAnimatingReset]);
+
     // Calculate container height based on screen height
     const containerHeight = Math.max(300, screenHeight - 280);
 
@@ -114,6 +121,7 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
 
     const handlePush = () => {
         if (!inputValue.trim() || isAnimatingPush) return;
+        
         const newItem = { id: nextId, value: inputValue.trim() };
         setPushingValue(inputValue.trim());
         setIsAnimatingPush(true);
@@ -132,18 +140,15 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
                 setIsAnimatingPush(false);
                 setPushingValue("");
                 setRecentlyPushedId(newItem.id);
-                inputRef.current?.focus();
                 setTimeout(() => {
                     setRecentlyPushedId(null);
                 }, 500);
             }, ANIMATION_CONFIG.PUSH.baseDuration * 1000);
         } else {
-            // Still wait for animation to complete before clearing states
             setTimeout(() => {
                 setNextId(nextId + 1);
                 setIsAnimatingPush(false);
                 setPushingValue("");
-                inputRef.current?.focus();
             }, ANIMATION_CONFIG.PUSH.baseDuration * 1000);
         }
     };
@@ -151,22 +156,17 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
     const handlePop = () => {
         if (actualStack.length === 0 || isAnimatingPop) return;
 
-        // Always remove from actual stack first
         const newActualStack = actualStack.slice(0, -1);
         setActualStack(newActualStack);
 
-        // Handle visible stack
         if (visibleStack.length > 0) {
             const lastVisibleItem = visibleStack[visibleStack.length - 1];
             setPoppingItem(lastVisibleItem);
             setIsAnimatingPop(true);
 
-            // Calculate new visible stack
             const maxVisible = getMaxVisibleItems();
             let newVisibleStack = visibleStack.slice(0, -1);
             
-            // If we have more items in actual stack than visible stack can show,
-            // add the next item from actual stack to visible stack
             if (newActualStack.length > newVisibleStack.length && newVisibleStack.length < maxVisible) {
                 const nextItemIndex = newActualStack.length - 1;
                 if (nextItemIndex >= 0) {
@@ -174,12 +174,10 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
                 }
             }
 
-            // Update visible stack after animation completes
             setTimeout(() => {
                 setVisibleStack(newVisibleStack);
                 setIsAnimatingPop(false);
                 setPoppingItem(null);
-                inputRef.current?.focus();
             }, ANIMATION_CONFIG.POP.baseDuration * 1000);
         }
     };
@@ -189,7 +187,6 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
         setIsAnimatingPeek(true);
         setTimeout(() => {
             setIsAnimatingPeek(false);
-            inputRef.current?.focus();
         }, ANIMATION_CONFIG.PEEK.baseDuration * 1000);
     };
 
@@ -201,7 +198,6 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
             setActualStack([]);
             setVisibleStack([]);
             setIsAnimatingReset(false);
-            inputRef.current?.focus();
         }, ANIMATION_CONFIG.RESET.initialDelay * 1000);
     };
 
@@ -219,10 +215,8 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
             value
         }));
 
-        // Add all items to actual stack
         setActualStack([...actualStack, ...newItems]);
 
-        // Add items to visible stack only if there's space
         const maxVisible = getMaxVisibleItems();
         const availableSpace = maxVisible - visibleStack.length;
         if (availableSpace > 0) {
@@ -231,7 +225,6 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
         }
 
         setNextId(nextId + 5);
-        inputRef.current?.focus();
     };
 
     const isButtonDisabled = (action: "Push" | "Pop" | "Peek" | "Reset" | "AddRandom") => {

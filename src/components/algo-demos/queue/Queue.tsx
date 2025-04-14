@@ -74,6 +74,13 @@ export function Queue({ screenHeight }: AlgoComponentProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const prevScreenHeightRef = useRef(screenHeight);
 
+    // Auto-focus input field when animations complete
+    useEffect(() => {
+        if (!isAnimatingEnqueue && !isAnimatingDequeue && !isAnimatingPeek && !isAnimatingReset) {
+            inputRef.current?.focus();
+        }
+    }, [isAnimatingEnqueue, isAnimatingDequeue, isAnimatingPeek, isAnimatingReset]);
+
     // Calculate container height based on screen height
     const containerHeight = Math.max(300, screenHeight - 280);
 
@@ -189,7 +196,6 @@ export function Queue({ screenHeight }: AlgoComponentProps) {
             setActualQueue([]);
             setVisibleQueue([]);
             setIsAnimatingReset(false);
-            inputRef.current?.focus();
         }, ANIMATION_CONFIG.RESET.initialDelay * 1000);
     };
 
@@ -275,6 +281,7 @@ export function Queue({ screenHeight }: AlgoComponentProps) {
                 onDequeue={handleDequeue}
                 onPeek={handlePeek}
                 isButtonDisabled={isButtonDisabled}
+                inputRef={inputRef}
             />
             <div className="flex flex-col items-center gap-2 mb-4">
                 <div className="flex items-center justify-center text-sm whitespace-nowrap">

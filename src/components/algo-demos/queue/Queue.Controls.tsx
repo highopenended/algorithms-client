@@ -11,6 +11,7 @@ interface ControlsProps {
     onDequeue: () => void;
     onPeek: () => void;
     isButtonDisabled: (action: "Enqueue" | "Dequeue" | "Peek") => boolean;
+    inputRef: React.RefObject<HTMLInputElement | null>;
 }
 
 /**
@@ -26,11 +27,13 @@ export function Controls({
     onEnqueue,
     onDequeue,
     onPeek,
-    isButtonDisabled
+    isButtonDisabled,
+    inputRef
 }: ControlsProps) {
     return (
         <div className="flex flex-col gap-4 mb-6 items-center w-full max-w-lg">
             <motion.input
+                ref={inputRef}
                 type="text"
                 value={inputValue}
                 maxLength={30}
