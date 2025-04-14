@@ -149,25 +149,31 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
     const handlePop = () => {
         if (actualStack.length === 0 || isAnimatingPop) return;
 
-        // Always remove from actual stack
+        // Always remove from actual stack first
         const newActualStack = actualStack.slice(0, -1);
         setActualStack(newActualStack);
 
         // Handle visible stack
         if (visibleStack.length > 0) {
-            setPoppingItem(visibleStack[visibleStack.length - 1]);
+            const lastVisibleItem = visibleStack[visibleStack.length - 1];
+            setPoppingItem(lastVisibleItem);
             setIsAnimatingPop(true);
 
-            setTimeout(() => {
-                const newVisibleStack = visibleStack.slice(0, -1);
-                
-                // If we have more items in actual stack than visible stack can show,
-                // add the next item from actual stack to visible stack
-                const maxVisible = getMaxVisibleItems();
-                if (newActualStack.length > newVisibleStack.length && newVisibleStack.length < maxVisible) {
-                    newVisibleStack.push(newActualStack[newVisibleStack.length - 1]);
+            // Calculate new visible stack
+            const maxVisible = getMaxVisibleItems();
+            let newVisibleStack = visibleStack.slice(0, -1);
+            
+            // If we have more items in actual stack than visible stack can show,
+            // add the next item from actual stack to visible stack
+            if (newActualStack.length > newVisibleStack.length && newVisibleStack.length < maxVisible) {
+                const nextItemIndex = newActualStack.length - 1;
+                if (nextItemIndex >= 0) {
+                    newVisibleStack.push(newActualStack[nextItemIndex]);
                 }
-                
+            }
+
+            // Update visible stack after animation completes
+            setTimeout(() => {
                 setVisibleStack(newVisibleStack);
                 setIsAnimatingPop(false);
                 setPoppingItem(null);
