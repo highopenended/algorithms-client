@@ -1,6 +1,12 @@
 import React from 'react';
 import Tree from 'react-d3-tree';
-import { RawNodeDatum } from './types';
+
+// Define the type for the tree data
+interface RawNodeDatum {
+  name: string;
+  attributes?: Record<string, string | number | boolean>;
+  children?: RawNodeDatum[];
+} 
 
 const treeData: RawNodeDatum = {
   name: '3',
@@ -29,8 +35,9 @@ export function DataTree() {
         data={treeData}
         orientation="vertical"
         pathFunc="step"
+        collapsible={false}
         translate={{ x: 350, y: 50 }}
-        separation={{ siblings: 2, nonSiblings: 2 }}
+        separation={{ siblings: 1, nonSiblings: 1 }}
       />
     </div>
   );

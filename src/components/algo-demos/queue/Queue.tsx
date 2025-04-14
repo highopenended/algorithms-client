@@ -60,7 +60,6 @@ const EnqueuingAnimation = ({
 export function Queue({ screenHeight }: AlgoComponentProps) {
     const [actualQueue, setActualQueue] = useState<QueueItem[]>([]);
     const [visibleQueue, setVisibleQueue] = useState<QueueItem[]>([]);
-    const [inputValue, setInputValue] = useState("");
     const [nextId, setNextId] = useState(0);
     const [isAnimatingEnqueue, setIsAnimatingEnqueue] = useState(false);
     const [isAnimatingDequeue, setIsAnimatingDequeue] = useState(false);
