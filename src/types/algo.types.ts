@@ -4,6 +4,8 @@ import { ComponentType } from 'react';
  * Props that all algorithm components should accept
  */
 export interface AlgoComponentProps {
+    /** Available screen width for the component */
+    screenWidth: number;
     /** Available screen height for the component */
     screenHeight: number;
 }

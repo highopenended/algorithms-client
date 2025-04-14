@@ -37,7 +37,7 @@ const InteractionZone = ({
                         <>
                             <h2 className="text-xl font-bold mb-4 text-center">{selectedAlgo.name}</h2>
                             <div className="h-[calc(100%-3rem)]">
-                                <selectedAlgo.component screenHeight={contentHeight - 48} />
+                                <selectedAlgo.component screenHeight={contentHeight - 48} screenWidth={screenWidth} />
                             </div>
                         </>
                     ) : (
@@ -93,7 +93,7 @@ const InteractionZone = ({
                     <>
                         <h2 className="text-xl font-bold mb-4 text-center">{selectedAlgo.name}</h2>
                         <div className="h-[calc(100%-3rem)]">
-                            <selectedAlgo.component screenHeight={contentHeight - 48} />
+                            <selectedAlgo.component screenHeight={contentHeight - 48} screenWidth={screenWidth} />
                         </div>
                     </>
                 ) : (

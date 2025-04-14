@@ -1,24 +1,29 @@
 import React from 'react';
+import { NodeArray } from './BinaryTree.types';
 
 interface ArrayDisplayProps {
-    mainArr: number[];
+    mainArr: NodeArray;
     screenWidth: number;
     screenHeight: number;
 }
 
 /**
- * Displays an array of numbers in a horizontal format
- * Each number is contained in a square bracket
+ * Displays an array of nodes in a horizontal format
+ * Each node's index is displayed in a box, null nodes are shown as empty slots
  */
 const ArrayDisplay: React.FC<ArrayDisplayProps> = ({ mainArr, screenWidth }) => {
     return (
         <div className="flex flex-wrap gap-2 p-4 w-full">
-            {mainArr.map((num, index) => (
+            {mainArr.map((node, index) => (
                 <div 
                     key={index}
-                    className="flex items-center justify-center min-w-[40px] h-[40px] bg-gray-200 rounded border border-gray-300"
+                    className={`
+                        flex items-center justify-center min-w-[40px] h-[40px] 
+                        ${node ? 'bg-gray-200' : 'bg-gray-100'} 
+                        rounded border border-gray-300
+                    `}
                 >
-                    {num}
+                    {node ? node.index : ''}
                 </div>
             ))}
         </div>

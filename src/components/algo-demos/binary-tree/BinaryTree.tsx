@@ -1,14 +1,55 @@
 import React, { useState } from "react";
 import DataTree from "./BinaryTree.DataTree.tsx";
 import ArrayDisplay from "./BinaryTree.ArrayDisplay.tsx";
+import { Node, NodeArray } from "./BinaryTree.types";
+import { AlgoComponentProps } from "../../../types/algo.types";
 
-interface BinaryTreeProps {
-    screenWidth: number;
-    screenHeight: number;
-}
+// Helper function to create a sample tree
+const createSampleTree = (): NodeArray => {
+    const root: Node = {
+        index: 1,
+        leftChild: {
+            index: 3,
+            leftChild: {
+                index: 7,
+                leftChild: null,
+                rightChild: null
+            },
+            rightChild: {
+                index: 4,
+                leftChild: null,
+                rightChild: null
+            }
+        },
+        rightChild: {
+            index: 9,
+            leftChild: {
+                index: 8,
+                leftChild: null,
+                rightChild: null
+            },
+            rightChild: null
+        }
+    };
 
-export function BinaryTree({ screenWidth, screenHeight }: BinaryTreeProps) {
-    const [mainArr, setMainArr] = useState<number[]>([1, 3, 7, 4, 9, 8, 20, 15, 1]);
+    // Convert the tree to an array representation
+    const array: NodeArray = [];
+    const queue: (Node | null)[] = [root];
+    
+    while (queue.length > 0) {
+        const node = queue.shift() ?? null;
+        array.push(node);
+        if (node) {
+            queue.push(node.leftChild);
+            queue.push(node.rightChild);
+        }
+    }
+
+    return array;
+};
+
+export function BinaryTree({ screenWidth, screenHeight }: AlgoComponentProps) {
+    const [mainArr, setMainArr] = useState<NodeArray>(createSampleTree());
 
     return (
         <div className="flex flex-col">
@@ -17,7 +58,7 @@ export function BinaryTree({ screenWidth, screenHeight }: BinaryTreeProps) {
                 screenWidth={screenWidth}
                 screenHeight={screenHeight}
             />
-            <DataTree/>
+            <DataTree mainArr={mainArr} />
         </div>
     );
 }
