@@ -50,6 +50,7 @@ const createSampleTree = (): NodeArray => {
 
 export function BinaryTree({ screenWidth, screenHeight }: AlgoComponentProps) {
     const [mainArr, setMainArr] = useState<NodeArray>(createSampleTree());
+    const [selectedArrIndex, setSelectedArrIndex] = useState<number | null>(null);
 
     return (
         <div className="flex flex-col">
@@ -57,8 +58,13 @@ export function BinaryTree({ screenWidth, screenHeight }: AlgoComponentProps) {
                 mainArr={mainArr}
                 screenWidth={screenWidth}
                 screenHeight={screenHeight}
+                selectedArrIndex={selectedArrIndex}
+                onSelectIndex={setSelectedArrIndex}
             />
-            <DataTree mainArr={mainArr} />
+            <DataTree 
+                mainArr={mainArr} 
+                selectedArrIndex={selectedArrIndex}
+            />
         </div>
     );
 }
