@@ -64,6 +64,7 @@ export function BinaryTree({ screenWidth, screenHeight }: AlgoComponentProps) {
             <DataTree 
                 mainArr={mainArr} 
                 selectedArrIndex={selectedArrIndex}
+                onNodeClick={setSelectedArrIndex}
             />
         </div>
     );
