@@ -343,11 +343,12 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
         setNextId(nextId + 5);
     };
 
-    const isButtonDisabled = (action: "Push" | "Pop" | "Peek") => {
+    const isButtonDisabled = (action: "Push" | "Pop" | "Peek" | "Reset" | "AddRandom") => {
         const isAnimating = {
             Push: isAnimatingPush,
             Pop: isAnimatingPop,
             Peek: isAnimatingPeek,
+            Reset: isAnimatingReset,
         };
 
         return (
@@ -362,7 +363,11 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
                 (actualStack.length === 0 ||
                     (isAnimating.Push && !BUTTON_CONFIG.PUSH.btnEnabled[action]) ||
                     (isAnimating.Pop && !BUTTON_CONFIG.POP.btnEnabled[action]) ||
-                    (isAnimating.Peek && !BUTTON_CONFIG.PEEK.btnEnabled[action])))
+                    (isAnimating.Peek && !BUTTON_CONFIG.PEEK.btnEnabled[action]))) ||
+            (action === "Reset" &&
+                (actualStack.length === 0 || isAnimating.Reset || isAnimating.Push || isAnimating.Pop || isAnimating.Peek)) ||
+            (action === "AddRandom" &&
+                (isAnimating.Push || isAnimating.Pop || isAnimating.Peek || isAnimating.Reset))
         );
     };
 
@@ -424,7 +429,7 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
                     <span className="w-[120px] text-right">
                         <button
                             onClick={handleReset}
-                            disabled={actualStack.length === 0 || isAnimatingReset || isAnimatingPush || isAnimatingPop || isAnimatingPeek}
+                            disabled={isButtonDisabled("Reset")}
                             className="text-gray-500 hover:text-gray-700 disabled:opacity-40 disabled:hover:text-gray-500 transition-colors"
                         >
                             Reset Stack
@@ -434,7 +439,7 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
                     <span className="w-[120px] text-left">
                         <button
                             onClick={handleAddRandom}
-                            disabled={isAnimatingPush || isAnimatingPop || isAnimatingPeek}
+                            disabled={isButtonDisabled("AddRandom")}
                             className="text-gray-500 hover:text-gray-700 disabled:opacity-40 disabled:hover:text-gray-500 transition-colors"
                         >
                             Add Random

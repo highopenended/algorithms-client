@@ -341,11 +341,12 @@ export function Queue({ screenHeight }: AlgoComponentProps) {
         setNextId(nextId + 5);
     };
 
-    const isButtonDisabled = (action: "Enqueue" | "Dequeue" | "Peek") => {
+    const isButtonDisabled = (action: "Enqueue" | "Dequeue" | "Peek" | "Reset" | "AddRandom") => {
         const isAnimating = {
             Enqueue: isAnimatingEnqueue,
             Dequeue: isAnimatingDequeue,
             Peek: isAnimatingPeek,
+            Reset: isAnimatingReset,
         };
 
         return (
@@ -360,7 +361,11 @@ export function Queue({ screenHeight }: AlgoComponentProps) {
                 (actualQueue.length === 0 ||
                     (isAnimating.Enqueue && !BUTTON_CONFIG.ENQUEUE.btnEnabled[action]) ||
                     (isAnimating.Dequeue && !BUTTON_CONFIG.DEQUEUE.btnEnabled[action]) ||
-                    (isAnimating.Peek && !BUTTON_CONFIG.PEEK.btnEnabled[action])))
+                    (isAnimating.Peek && !BUTTON_CONFIG.PEEK.btnEnabled[action]))) ||
+            (action === "Reset" &&
+                (actualQueue.length === 0 || isAnimating.Reset || isAnimating.Enqueue || isAnimating.Dequeue || isAnimating.Peek)) ||
+            (action === "AddRandom" &&
+                (isAnimating.Enqueue || isAnimating.Dequeue || isAnimating.Peek || isAnimating.Reset))
         );
     };
 
@@ -422,7 +427,7 @@ export function Queue({ screenHeight }: AlgoComponentProps) {
                     <span className="w-[120px] text-right">
                         <button
                             onClick={handleReset}
-                            disabled={actualQueue.length === 0 || isAnimatingReset || isAnimatingEnqueue || isAnimatingDequeue || isAnimatingPeek}
+                            disabled={isButtonDisabled("Reset")}
                             className="text-gray-500 hover:text-gray-700 disabled:opacity-40 disabled:hover:text-gray-500 transition-colors"
                         >
                             Reset Queue
@@ -432,7 +437,7 @@ export function Queue({ screenHeight }: AlgoComponentProps) {
                     <span className="w-[120px] text-left">
                         <button
                             onClick={handleAddRandom}
-                            disabled={isAnimatingEnqueue || isAnimatingDequeue || isAnimatingPeek}
+                            disabled={isButtonDisabled("AddRandom")}
                             className="text-gray-500 hover:text-gray-700 disabled:opacity-40 disabled:hover:text-gray-500 transition-colors"
                         >
                             Add Random
