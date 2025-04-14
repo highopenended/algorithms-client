@@ -24,8 +24,8 @@ const STACK_CONFIG = {
 const BUTTON_CONFIG = {
     PUSH: { btnEnabled: { Push: false, Pop: false, Peek: false } },
     POP: { btnEnabled: { Push: false, Pop: false, Peek: false } },
-    PEEK: { btnEnabled: { Push: false, Pop: true, Peek: false } },
-    RESET: { btnEnabled: { Push: true, Pop: true, Peek: true } },
+    PEEK: { btnEnabled: { Push: false, Pop: false, Peek: false } },
+    RESET: { btnEnabled: { Push: false, Pop: false, Peek: false } },
 };
 
 // Animation constants

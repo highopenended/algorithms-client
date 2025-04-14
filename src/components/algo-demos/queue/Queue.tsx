@@ -24,8 +24,8 @@ const QUEUE_CONFIG = {
 const BUTTON_CONFIG = {
     ENQUEUE: { btnEnabled: { Enqueue: false, Dequeue: false, Peek: false } },
     DEQUEUE: { btnEnabled: { Enqueue: false, Dequeue: false, Peek: false } },
-    PEEK: { btnEnabled: { Enqueue: false, Dequeue: true, Peek: false } },
-    RESET: { btnEnabled: { Enqueue: true, Dequeue: true, Peek: true } },
+    PEEK: { btnEnabled: { Enqueue: false, Dequeue: false, Peek: false } },
+    RESET: { btnEnabled: { Enqueue: false, Dequeue: false, Peek: false } },
 };
 
 // Animation constants
