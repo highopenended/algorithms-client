@@ -67,26 +67,20 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
     const [isAnimatingPop, setIsAnimatingPop] = useState(false);
     const [isAnimatingPeek, setIsAnimatingPeek] = useState(false);
     const [isAnimatingReset, setIsAnimatingReset] = useState(false);
+    const [isAnimatingAddRandom, setIsAnimatingAddRandom] = useState(false);
     const [poppingItem, setPoppingItem] = useState<StackItem | null>(null);
     const [pushingValue, setPushingValue] = useState("");
     const [recentlyPushedId, setRecentlyPushedId] = useState<number | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const prevScreenHeightRef = useRef(screenHeight);
-    const renderCountRef = useRef(0);
-
-    // Performance logging
-    useEffect(() => {
-        renderCountRef.current++;
-        console.log(`[Stack] Render #${renderCountRef.current} - Stack size: ${actualStack.length}, Visible items: ${visibleStack.length}`);
-    });
 
     // Auto-focus input field when animations complete
     useEffect(() => {
-        if (!isAnimatingPush && !isAnimatingPop && !isAnimatingPeek && !isAnimatingReset) {
+        if (!isAnimatingPush && !isAnimatingPop && !isAnimatingPeek && !isAnimatingReset && !isAnimatingAddRandom) {
             inputRef.current?.focus();
         }
-    }, [isAnimatingPush, isAnimatingPop, isAnimatingPeek, isAnimatingReset]);
+    }, [isAnimatingPush, isAnimatingPop, isAnimatingPeek, isAnimatingReset, isAnimatingAddRandom]);
 
     // Calculate container height based on screen height
     const containerHeight = Math.max(300, screenHeight - 280);
@@ -125,11 +119,7 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
     }, [screenHeight, actualStack]);
 
     const handlePush = useCallback((value: string) => {
-        console.time('[Stack] handlePush');
-        if (isAnimatingPush) {
-            console.timeEnd('[Stack] handlePush');
-            return;
-        }
+        if (isAnimatingPush) return;
         
         const newItem = { id: nextId, value };
         setPushingValue(value);
@@ -151,24 +141,18 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
                 setTimeout(() => {
                     setRecentlyPushedId(null);
                 }, 500);
-                console.timeEnd('[Stack] handlePush');
             }, ANIMATION_CONFIG.PUSH.baseDuration * 1000);
         } else {
             setTimeout(() => {
                 setNextId(nextId + 1);
                 setIsAnimatingPush(false);
                 setPushingValue("");
-                console.timeEnd('[Stack] handlePush');
             }, ANIMATION_CONFIG.PUSH.baseDuration * 1000);
         }
     }, [actualStack, visibleStack, nextId, isAnimatingPush, getMaxVisibleItems]);
 
-    const handlePop = () => {
-        console.time('[Stack] handlePop');
-        if (actualStack.length === 0 || isAnimatingPop) {
-            console.timeEnd('[Stack] handlePop');
-            return;
-        }
+    const handlePop = useCallback(() => {
+        if (actualStack.length === 0 || isAnimatingPop) return;
 
         const newActualStack = actualStack.slice(0, -1);
         setActualStack(newActualStack);
@@ -192,10 +176,9 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
                 setVisibleStack(newVisibleStack);
                 setIsAnimatingPop(false);
                 setPoppingItem(null);
-                console.timeEnd('[Stack] handlePop');
             }, ANIMATION_CONFIG.POP.baseDuration * 1000);
         }
-    };
+    }, [actualStack, visibleStack, isAnimatingPop, getMaxVisibleItems]);
 
     const handlePeek = () => {
         if (actualStack.length === 0) return;
@@ -216,9 +199,10 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
         }, ANIMATION_CONFIG.RESET.initialDelay * 1000);
     };
 
-    const handleAddRandom = () => {
+    const handleAddRandom = useCallback(() => {
         if (isAnimatingPush || isAnimatingPop || isAnimatingPeek) return;
         
+        setIsAnimatingAddRandom(true);
         const randomValues = Array.from({ length: 5 }, () => {
             const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
             const length = Math.floor(Math.random() * 3) + 1;
@@ -240,7 +224,10 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
         }
 
         setNextId(nextId + 5);
-    };
+        setTimeout(() => {
+            setIsAnimatingAddRandom(false);
+        }, 500);
+    }, [actualStack, visibleStack, nextId, isAnimatingPush, isAnimatingPop, isAnimatingPeek, getMaxVisibleItems]);
 
     // Memoize isButtonDisabled since it depends on multiple state values
     const isButtonDisabled = useCallback((action: "Push" | "Pop" | "Peek" | "Reset" | "AddRandom") => {

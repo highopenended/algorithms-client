@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AlgoComponentProps } from "../../../types/algo.types";
 import MotionWrapper from "./Queue.MotionWrapper.tsx";
@@ -66,7 +66,7 @@ export function Queue({ screenHeight }: AlgoComponentProps) {
     const [isAnimatingDequeue, setIsAnimatingDequeue] = useState(false);
     const [isAnimatingPeek, setIsAnimatingPeek] = useState(false);
     const [isAnimatingReset, setIsAnimatingReset] = useState(false);
-    const [isInputShaking, setIsInputShaking] = useState(false);
+    const [isAnimatingAddRandom, setIsAnimatingAddRandom] = useState(false);
     const [dequeuingItem, setDequeuingItem] = useState<QueueItem | null>(null);
     const [enqueuingValue, setEnqueuingValue] = useState("");
     const [recentlyEnqueuedId, setRecentlyEnqueuedId] = useState<number | null>(null);
@@ -76,10 +76,10 @@ export function Queue({ screenHeight }: AlgoComponentProps) {
 
     // Auto-focus input field when animations complete
     useEffect(() => {
-        if (!isAnimatingEnqueue && !isAnimatingDequeue && !isAnimatingPeek && !isAnimatingReset) {
+        if (!isAnimatingEnqueue && !isAnimatingDequeue && !isAnimatingPeek && !isAnimatingReset && !isAnimatingAddRandom) {
             inputRef.current?.focus();
         }
-    }, [isAnimatingEnqueue, isAnimatingDequeue, isAnimatingPeek, isAnimatingReset]);
+    }, [isAnimatingEnqueue, isAnimatingDequeue, isAnimatingPeek, isAnimatingReset, isAnimatingAddRandom]);
 
     // Calculate container height based on screen height
     const containerHeight = Math.max(300, screenHeight - 280);
@@ -94,10 +94,10 @@ export function Queue({ screenHeight }: AlgoComponentProps) {
     QUEUE_CONFIG.bottomItemSeparation = Math.max(16, verticalSpacing * 2);
 
     // Calculate maximum visible items based on available space
-    const getMaxVisibleItems = () => {
+    const getMaxVisibleItems = useCallback(() => {
         const availableSpace = QUEUE_CONFIG.maxFloorOffset - QUEUE_CONFIG.verticalSpacing - QUEUE_CONFIG.bottomItemSeparation - QUEUE_CONFIG.topItemSeparation;
         return Math.floor(availableSpace / (QUEUE_CONFIG.verticalSpacing * QUEUE_CONFIG.minCompressionRatio)) + 3;
-    };
+    }, []);
 
     // Update visible queue only when screen height actually changes
     useEffect(() => {
@@ -115,14 +115,14 @@ export function Queue({ screenHeight }: AlgoComponentProps) {
         }
 
         prevScreenHeightRef.current = screenHeight;
-    }, [screenHeight, actualQueue]);
+    }, [screenHeight, actualQueue, getMaxVisibleItems]);
 
-    const handleEnqueue = () => {
-        if (!inputValue.trim() || isAnimatingEnqueue) return;
-        const newItem = { id: nextId, value: inputValue.trim() };
-        setEnqueuingValue(inputValue.trim());
+    const handleEnqueue = useCallback((value: string) => {
+        if (isAnimatingEnqueue) return;
+        
+        const newItem = { id: nextId, value };
+        setEnqueuingValue(value);
         setIsAnimatingEnqueue(true);
-        setInputValue("");
 
         // Always add to actual queue
         const newActualQueue = [...actualQueue, newItem];
@@ -142,16 +142,15 @@ export function Queue({ screenHeight }: AlgoComponentProps) {
                 }, 500);
             }, ANIMATION_CONFIG.ENQUEUE.baseDuration * 1000);
         } else {
-            // Still wait for animation to complete before clearing states
             setTimeout(() => {
                 setNextId(nextId + 1);
                 setIsAnimatingEnqueue(false);
                 setEnqueuingValue("");
             }, ANIMATION_CONFIG.ENQUEUE.baseDuration * 1000);
         }
-    };
+    }, [actualQueue, visibleQueue, nextId, isAnimatingEnqueue, getMaxVisibleItems]);
 
-    const handleDequeue = () => {
+    const handleDequeue = useCallback(() => {
         if (actualQueue.length === 0 || isAnimatingDequeue) return;
 
         // Always remove from actual queue
@@ -178,17 +177,17 @@ export function Queue({ screenHeight }: AlgoComponentProps) {
                 setDequeuingItem(null);
             }, ANIMATION_CONFIG.DEQUEUE.baseDuration * 1000);
         }
-    };
+    }, [actualQueue, visibleQueue, isAnimatingDequeue, getMaxVisibleItems]);
 
-    const handlePeek = () => {
+    const handlePeek = useCallback(() => {
         if (actualQueue.length === 0) return;
         setIsAnimatingPeek(true);
         setTimeout(() => {
             setIsAnimatingPeek(false);
         }, ANIMATION_CONFIG.PEEK.baseDuration * 1000);
-    };
+    }, [actualQueue.length]);
 
-    const handleReset = () => {
+    const handleReset = useCallback(() => {
         if (actualQueue.length === 0 || isAnimatingReset) return;
         setIsAnimatingReset(true);
         
@@ -197,11 +196,12 @@ export function Queue({ screenHeight }: AlgoComponentProps) {
             setVisibleQueue([]);
             setIsAnimatingReset(false);
         }, ANIMATION_CONFIG.RESET.initialDelay * 1000);
-    };
+    }, [actualQueue.length, isAnimatingReset]);
 
-    const handleAddRandom = () => {
+    const handleAddRandom = useCallback(() => {
         if (isAnimatingEnqueue || isAnimatingDequeue || isAnimatingPeek) return;
         
+        setIsAnimatingAddRandom(true);
         const randomValues = Array.from({ length: 5 }, () => {
             const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
             const length = Math.floor(Math.random() * 3) + 1;
@@ -213,10 +213,8 @@ export function Queue({ screenHeight }: AlgoComponentProps) {
             value
         }));
 
-        // Add all items to actual queue
         setActualQueue([...actualQueue, ...newItems]);
 
-        // Add items to visible queue only if there's space
         const maxVisible = getMaxVisibleItems();
         const availableSpace = maxVisible - visibleQueue.length;
         if (availableSpace > 0) {
@@ -225,9 +223,12 @@ export function Queue({ screenHeight }: AlgoComponentProps) {
         }
 
         setNextId(nextId + 5);
-    };
+        setTimeout(() => {
+            setIsAnimatingAddRandom(false);
+        }, 500);
+    }, [actualQueue, visibleQueue, nextId, isAnimatingEnqueue, isAnimatingDequeue, isAnimatingPeek, getMaxVisibleItems]);
 
-    const isButtonDisabled = (action: "Enqueue" | "Dequeue" | "Peek" | "Reset" | "AddRandom") => {
+    const isButtonDisabled = useCallback((action: "Enqueue" | "Dequeue" | "Peek" | "Reset" | "AddRandom") => {
         const isAnimating = {
             Enqueue: isAnimatingEnqueue,
             Dequeue: isAnimatingDequeue,
@@ -237,7 +238,7 @@ export function Queue({ screenHeight }: AlgoComponentProps) {
 
         return (
             (action === "Enqueue" &&
-                (!inputValue.trim() || (isAnimating.Enqueue && !BUTTON_CONFIG.ENQUEUE.btnEnabled[action]))) ||
+                (isAnimating.Enqueue && !BUTTON_CONFIG.ENQUEUE.btnEnabled[action])) ||
             (action === "Dequeue" &&
                 (actualQueue.length === 0 ||
                     (isAnimating.Enqueue && !BUTTON_CONFIG.ENQUEUE.btnEnabled[action]) ||
@@ -253,30 +254,119 @@ export function Queue({ screenHeight }: AlgoComponentProps) {
             (action === "AddRandom" &&
                 (isAnimating.Enqueue || isAnimating.Dequeue || isAnimating.Peek || isAnimating.Reset))
         );
-    };
+    }, [actualQueue.length, isAnimatingEnqueue, isAnimatingDequeue, isAnimatingPeek, isAnimatingReset]);
 
-    const handleInputChange = (value: string) => {
-        if (value.length === 30 && inputValue.length < 30) {
-            setIsInputShaking(true);
-            setTimeout(() => setIsInputShaking(false), 300);
-        }
-        setInputValue(value);
-    };
+    // Memoize the queue visualization
+    const queueVisualization = useMemo(() => (
+        <div 
+            ref={containerRef} 
+            className="relative w-full max-w-md flex items-start justify-center" 
+            style={{ 
+                height: containerHeight,
+                perspective: "1000px"
+            }}
+        >
+            <div className="relative w-64" style={{ 
+                transformStyle: "preserve-3d",
+                display: "flex",
+                alignItems: "start",
+                justifyContent: "center"
+            }}>
+                <Floor queueLength={visibleQueue.length} />
+                <AnimatePresence>
+                    {visibleQueue.map((item, index) => {
+                        const isBottom = index === 0;
+                        const isDequeuing = isBottom && dequeuingItem?.id === item.id;
+                        const isPeeking = isBottom && isAnimatingPeek;
+                        const borderColor = isBottom && !isAnimatingEnqueue ? "#9CA3AF" : "#E5E7EB";
 
-    const handleInputKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter' && !isButtonDisabled("Enqueue")) {
-            handleEnqueue();
-        }
-    };
+                        if (isAnimatingReset) {
+                            const randomRotation = Math.random() * 60 - 30;
+                            const randomXdrift = Math.random() * 100 - 50;
+                            return (
+                                <MotionWrapper
+                                    key={item.id}
+                                    item={item}
+                                    index={index}
+                                    queueLength={visibleQueue.length}
+                                    animation={ANIMATION_CONFIG.DEFAULT}
+                                    config={QUEUE_CONFIG}
+                                    exit={{
+                                        ...ANIMATION_CONFIG.RESET.exit,
+                                        rotate: randomRotation,
+                                        x: randomXdrift,
+                                        transition: {
+                                            ...ANIMATION_CONFIG.RESET.exit.transition,
+                                            delay: index * (ANIMATION_CONFIG.RESET.totalDuration / visibleQueue.length),
+                                        },
+                                    }}
+                                >
+                                    {item.value}
+                                </MotionWrapper>
+                            );
+                        }
+
+                        if (isDequeuing) {
+                            return (
+                                <MotionWrapper
+                                    key={item.id}
+                                    item={item}
+                                    index={index}
+                                    queueLength={visibleQueue.length}
+                                    animation={ANIMATION_CONFIG.DEQUEUE.animate}
+                                    config={QUEUE_CONFIG}
+                                    exit={ANIMATION_CONFIG.DEQUEUE.exit}
+                                >
+                                    {item.value}
+                                </MotionWrapper>
+                            );
+                        }
+
+                        if (isPeeking) {
+                            return (
+                                <MotionWrapper
+                                    key={item.id}
+                                    item={item}
+                                    index={index}
+                                    queueLength={visibleQueue.length}
+                                    animation={ANIMATION_CONFIG.PEEK}
+                                    config={QUEUE_CONFIG}
+                                >
+                                    {item.value}
+                                </MotionWrapper>
+                            );
+                        }
+
+                        return (
+                            <MotionWrapper
+                                key={item.id}
+                                item={item}
+                                index={index}
+                                queueLength={visibleQueue.length}
+                                animation={{ ...ANIMATION_CONFIG.DEFAULT, borderColor }}
+                                config={QUEUE_CONFIG}
+                            >
+                                {item.id === recentlyEnqueuedId ? item.value : "..."}
+                            </MotionWrapper>
+                        );
+                    })}
+                </AnimatePresence>
+            </div>
+        </div>
+    ), [
+        visibleQueue,
+        dequeuingItem,
+        isAnimatingPeek,
+        isAnimatingEnqueue,
+        isAnimatingReset,
+        recentlyEnqueuedId,
+        containerHeight
+    ]);
 
     return (
         <div className="p-6 flex flex-col items-center" style={{ height: screenHeight, maxHeight: screenHeight }}>
             <Controls
-                inputValue={inputValue}
-                isInputShaking={isInputShaking}
                 isAnimatingEnqueue={isAnimatingEnqueue}
-                onInputChange={handleInputChange}
-                onInputKeyDown={handleInputKeyDown}
                 onEnqueue={handleEnqueue}
                 onDequeue={handleDequeue}
                 onPeek={handlePeek}
@@ -316,101 +406,7 @@ export function Queue({ screenHeight }: AlgoComponentProps) {
                 />
             )}
 
-            <div 
-                ref={containerRef} 
-                className="relative w-full max-w-md flex items-start justify-center" 
-                style={{ 
-                    height: containerHeight,
-                    perspective: "1000px"
-                }}
-            >
-                <div className="relative w-64" style={{ 
-                    transformStyle: "preserve-3d",
-                    display: "flex",
-                    alignItems: "start",
-                    justifyContent: "center"
-                }}>
-                    <Floor queueLength={visibleQueue.length} />
-                    <AnimatePresence>
-                        {visibleQueue.map((item, index) => {
-                            const isBottom = index === 0;
-                            const isDequeuing = isBottom && dequeuingItem?.id === item.id;
-                            const isPeeking = isBottom && isAnimatingPeek;
-                            const borderColor = isBottom && !isAnimatingEnqueue ? "#9CA3AF" : "#E5E7EB";
-
-                            if (isAnimatingReset) {
-                                const randomRotation = Math.random() * 60 - 30;
-                                const randomXdrift = Math.random() * 100 - 50;
-                                return (
-                                    <MotionWrapper
-                                        key={item.id}
-                                        item={item}
-                                        index={index}
-                                        queueLength={visibleQueue.length}
-                                        animation={ANIMATION_CONFIG.DEFAULT}
-                                        config={QUEUE_CONFIG}
-                                        exit={{
-                                            ...ANIMATION_CONFIG.RESET.exit,
-                                            rotate: randomRotation,
-                                            x: randomXdrift,
-                                            transition: {
-                                                ...ANIMATION_CONFIG.RESET.exit.transition,
-                                                delay: index * (ANIMATION_CONFIG.RESET.totalDuration / visibleQueue.length),
-                                            },
-                                        }}
-                                    >
-                                        {item.value}
-                                    </MotionWrapper>
-                                );
-                            }
-
-                            if (isDequeuing) {
-                                return (
-                                    <MotionWrapper
-                                        key={item.id}
-                                        item={item}
-                                        index={index}
-                                        queueLength={visibleQueue.length}
-                                        animation={ANIMATION_CONFIG.DEQUEUE.animate}
-                                        config={QUEUE_CONFIG}
-                                        exit={ANIMATION_CONFIG.DEQUEUE.exit}
-                                    >
-                                        {item.value}
-                                    </MotionWrapper>
-                                );
-                            }
-
-                            if (isPeeking) {
-                                return (
-                                    <MotionWrapper
-                                        key={item.id}
-                                        item={item}
-                                        index={index}
-                                        queueLength={visibleQueue.length}
-                                        animation={ANIMATION_CONFIG.PEEK}
-                                        config={QUEUE_CONFIG}
-                                    >
-                                        {item.value}
-                                    </MotionWrapper>
-                                );
-                            }
-
-                            return (
-                                <MotionWrapper
-                                    key={item.id}
-                                    item={item}
-                                    index={index}
-                                    queueLength={visibleQueue.length}
-                                    animation={{ ...ANIMATION_CONFIG.DEFAULT, borderColor }}
-                                    config={QUEUE_CONFIG}
-                                >
-                                    {item.id === recentlyEnqueuedId ? item.value : "..."}
-                                </MotionWrapper>
-                            );
-                        })}
-                    </AnimatePresence>
-                </div>
-            </div>
+            {queueVisualization}
         </div>
     );
 }
