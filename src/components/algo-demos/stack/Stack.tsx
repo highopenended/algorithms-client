@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AlgoComponentProps } from "../../../types/algo.types";
 import MotionWrapper from "./Stack.MotionWrapper.tsx";
@@ -62,19 +62,24 @@ const PushingAnimation = ({
 export function Stack({ screenHeight }: AlgoComponentProps) {
     const [actualStack, setActualStack] = useState<StackItem[]>([]);
     const [visibleStack, setVisibleStack] = useState<StackItem[]>([]);
-    const [inputValue, setInputValue] = useState("");
     const [nextId, setNextId] = useState(0);
     const [isAnimatingPush, setIsAnimatingPush] = useState(false);
     const [isAnimatingPop, setIsAnimatingPop] = useState(false);
     const [isAnimatingPeek, setIsAnimatingPeek] = useState(false);
     const [isAnimatingReset, setIsAnimatingReset] = useState(false);
-    const [isInputShaking, setIsInputShaking] = useState(false);
     const [poppingItem, setPoppingItem] = useState<StackItem | null>(null);
     const [pushingValue, setPushingValue] = useState("");
     const [recentlyPushedId, setRecentlyPushedId] = useState<number | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const prevScreenHeightRef = useRef(screenHeight);
+    const renderCountRef = useRef(0);
+
+    // Performance logging
+    useEffect(() => {
+        renderCountRef.current++;
+        console.log(`[Stack] Render #${renderCountRef.current} - Stack size: ${actualStack.length}, Visible items: ${visibleStack.length}`);
+    });
 
     // Auto-focus input field when animations complete
     useEffect(() => {
@@ -95,11 +100,11 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
     STACK_CONFIG.topItemSeparation = Math.max(16, verticalSpacing * 2);
     STACK_CONFIG.bottomItemSeparation = Math.max(16, verticalSpacing * 2);
 
-    // Calculate maximum visible items based on available space
-    const getMaxVisibleItems = () => {
+    // Memoize getMaxVisibleItems since it only depends on container height
+    const getMaxVisibleItems = useCallback(() => {
         const availableSpace = STACK_CONFIG.maxFloorOffset - STACK_CONFIG.verticalSpacing - STACK_CONFIG.bottomItemSeparation - STACK_CONFIG.topItemSeparation;
         return Math.floor(availableSpace / (STACK_CONFIG.verticalSpacing * STACK_CONFIG.minCompressionRatio)) + 3;
-    };
+    }, []);
 
     // Update visible stack only when screen height actually changes
     useEffect(() => {
@@ -119,13 +124,16 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
         prevScreenHeightRef.current = screenHeight;
     }, [screenHeight, actualStack]);
 
-    const handlePush = () => {
-        if (!inputValue.trim() || isAnimatingPush) return;
+    const handlePush = useCallback((value: string) => {
+        console.time('[Stack] handlePush');
+        if (isAnimatingPush) {
+            console.timeEnd('[Stack] handlePush');
+            return;
+        }
         
-        const newItem = { id: nextId, value: inputValue.trim() };
-        setPushingValue(inputValue.trim());
+        const newItem = { id: nextId, value };
+        setPushingValue(value);
         setIsAnimatingPush(true);
-        setInputValue("");
 
         // Always add to actual stack
         const newActualStack = [...actualStack, newItem];
@@ -143,18 +151,24 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
                 setTimeout(() => {
                     setRecentlyPushedId(null);
                 }, 500);
+                console.timeEnd('[Stack] handlePush');
             }, ANIMATION_CONFIG.PUSH.baseDuration * 1000);
         } else {
             setTimeout(() => {
                 setNextId(nextId + 1);
                 setIsAnimatingPush(false);
                 setPushingValue("");
+                console.timeEnd('[Stack] handlePush');
             }, ANIMATION_CONFIG.PUSH.baseDuration * 1000);
         }
-    };
+    }, [actualStack, visibleStack, nextId, isAnimatingPush, getMaxVisibleItems]);
 
     const handlePop = () => {
-        if (actualStack.length === 0 || isAnimatingPop) return;
+        console.time('[Stack] handlePop');
+        if (actualStack.length === 0 || isAnimatingPop) {
+            console.timeEnd('[Stack] handlePop');
+            return;
+        }
 
         const newActualStack = actualStack.slice(0, -1);
         setActualStack(newActualStack);
@@ -178,6 +192,7 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
                 setVisibleStack(newVisibleStack);
                 setIsAnimatingPop(false);
                 setPoppingItem(null);
+                console.timeEnd('[Stack] handlePop');
             }, ANIMATION_CONFIG.POP.baseDuration * 1000);
         }
     };
@@ -227,7 +242,8 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
         setNextId(nextId + 5);
     };
 
-    const isButtonDisabled = (action: "Push" | "Pop" | "Peek" | "Reset" | "AddRandom") => {
+    // Memoize isButtonDisabled since it depends on multiple state values
+    const isButtonDisabled = useCallback((action: "Push" | "Pop" | "Peek" | "Reset" | "AddRandom") => {
         const isAnimating = {
             Push: isAnimatingPush,
             Pop: isAnimatingPop,
@@ -237,7 +253,7 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
 
         return (
             (action === "Push" &&
-                (!inputValue.trim() || (isAnimating.Push && !BUTTON_CONFIG.PUSH.btnEnabled[action]))) ||
+                (isAnimating.Push && !BUTTON_CONFIG.PUSH.btnEnabled[action])) ||
             (action === "Pop" &&
                 (actualStack.length === 0 ||
                     (isAnimating.Push && !BUTTON_CONFIG.PUSH.btnEnabled[action]) ||
@@ -253,30 +269,119 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
             (action === "AddRandom" &&
                 (isAnimating.Push || isAnimating.Pop || isAnimating.Peek || isAnimating.Reset))
         );
-    };
+    }, [actualStack.length, isAnimatingPush, isAnimatingPop, isAnimatingPeek, isAnimatingReset]);
 
-    const handleInputChange = (value: string) => {
-        if (value.length === 30 && inputValue.length < 30) {
-            setIsInputShaking(true);
-            setTimeout(() => setIsInputShaking(false), 300);
-        }
-        setInputValue(value);
-    };
+    // Memoize the stack visualization
+    const stackVisualization = useMemo(() => (
+        <div 
+            ref={containerRef} 
+            className="relative w-full max-w-md flex items-start justify-center" 
+            style={{ 
+                height: containerHeight,
+                perspective: "1000px"
+            }}
+        >
+            <div className="relative w-64" style={{ 
+                transformStyle: "preserve-3d",
+                display: "flex",
+                alignItems: "start",
+                justifyContent: "center"
+            }}>
+                <Floor stackLength={visibleStack.length} />
+                <AnimatePresence>
+                    {visibleStack.map((item, index) => {
+                        const isTop = index === visibleStack.length - 1;
+                        const isPopping = isTop && poppingItem?.id === item.id;
+                        const isPeeking = isTop && isAnimatingPeek;
+                        const borderColor = isTop && !isAnimatingPush ? "#9CA3AF" : "#E5E7EB";
 
-    const handleInputKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter' && !isButtonDisabled("Push")) {
-            handlePush();
-        }
-    };
+                        if (isAnimatingReset) {
+                            const randomRotation = Math.random() * 60 - 30;
+                            const randomXdrift = Math.random() * 100 - 50;
+                            return (
+                                <MotionWrapper
+                                    key={item.id}
+                                    item={item}
+                                    index={index}
+                                    stackLength={visibleStack.length}
+                                    animation={ANIMATION_CONFIG.DEFAULT}
+                                    config={STACK_CONFIG}
+                                    exit={{
+                                        ...ANIMATION_CONFIG.RESET.exit,
+                                        rotate: randomRotation,
+                                        x: randomXdrift,
+                                        transition: {
+                                            ...ANIMATION_CONFIG.RESET.exit.transition,
+                                            delay: index * (ANIMATION_CONFIG.RESET.totalDuration / visibleStack.length),
+                                        },
+                                    }}
+                                >
+                                    {item.value}
+                                </MotionWrapper>
+                            );
+                        }
+
+                        if (isPopping) {
+                            return (
+                                <MotionWrapper
+                                    key={item.id}
+                                    item={item}
+                                    index={index}
+                                    stackLength={visibleStack.length}
+                                    animation={ANIMATION_CONFIG.POP.animate}
+                                    config={STACK_CONFIG}
+                                    exit={ANIMATION_CONFIG.POP.exit}
+                                >
+                                    {item.value}
+                                </MotionWrapper>
+                            );
+                        }
+
+                        if (isPeeking) {
+                            return (
+                                <MotionWrapper
+                                    key={item.id}
+                                    item={item}
+                                    index={index}
+                                    stackLength={visibleStack.length}
+                                    animation={ANIMATION_CONFIG.PEEK}
+                                    config={STACK_CONFIG}
+                                >
+                                    {item.value}
+                                </MotionWrapper>
+                            );
+                        }
+
+                        return (
+                            <MotionWrapper
+                                key={item.id}
+                                item={item}
+                                index={index}
+                                stackLength={visibleStack.length}
+                                animation={{ ...ANIMATION_CONFIG.DEFAULT, borderColor }}
+                                config={STACK_CONFIG}
+                            >
+                                {item.id === recentlyPushedId ? item.value : "..."}
+                            </MotionWrapper>
+                        );
+                    })}
+                </AnimatePresence>
+            </div>
+        </div>
+    ), [
+        visibleStack,
+        poppingItem,
+        isAnimatingPeek,
+        isAnimatingPush,
+        isAnimatingReset,
+        recentlyPushedId,
+        containerHeight
+    ]);
 
     return (
         <div className="p-6 flex flex-col items-center" style={{ height: screenHeight, maxHeight: screenHeight }}>
             <Controls
-                inputValue={inputValue}
-                isInputShaking={isInputShaking}
                 isAnimatingPush={isAnimatingPush}
-                onInputChange={handleInputChange}
-                onInputKeyDown={handleInputKeyDown}
                 onPush={handlePush}
                 onPop={handlePop}
                 onPeek={handlePeek}
@@ -317,101 +422,7 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
                 />
             )}
 
-            <div 
-                ref={containerRef} 
-                className="relative w-full max-w-md flex items-start justify-center" 
-                style={{ 
-                    height: containerHeight,
-                    perspective: "1000px"
-                }}
-            >
-                <div className="relative w-64" style={{ 
-                    transformStyle: "preserve-3d",
-                    display: "flex",
-                    alignItems: "start",
-                    justifyContent: "center"
-                }}>
-                    <Floor stackLength={visibleStack.length} />
-                    <AnimatePresence>
-                        {visibleStack.map((item, index) => {
-                            const isTop = index === visibleStack.length - 1; // Last item is at the top
-                            const isPopping = isTop && poppingItem?.id === item.id;
-                            const isPeeking = isTop && isAnimatingPeek;
-                            const borderColor = isTop && !isAnimatingPush ? "#9CA3AF" : "#E5E7EB";
-
-                            if (isAnimatingReset) {
-                                const randomRotation = Math.random() * 60 - 30;
-                                const randomXdrift = Math.random() * 100 - 50;
-                                return (
-                                    <MotionWrapper
-                                        key={item.id}
-                                        item={item}
-                                        index={index}
-                                        stackLength={visibleStack.length}
-                                        animation={ANIMATION_CONFIG.DEFAULT}
-                                        config={STACK_CONFIG}
-                                        exit={{
-                                            ...ANIMATION_CONFIG.RESET.exit,
-                                            rotate: randomRotation,
-                                            x: randomXdrift,
-                                            transition: {
-                                                ...ANIMATION_CONFIG.RESET.exit.transition,
-                                                delay: index * (ANIMATION_CONFIG.RESET.totalDuration / visibleStack.length),
-                                            },
-                                        }}
-                                    >
-                                        {item.value}
-                                    </MotionWrapper>
-                                );
-                            }
-
-                            if (isPopping) {
-                                return (
-                                    <MotionWrapper
-                                        key={item.id}
-                                        item={item}
-                                        index={index}
-                                        stackLength={visibleStack.length}
-                                        animation={ANIMATION_CONFIG.POP.animate}
-                                        config={STACK_CONFIG}
-                                        exit={ANIMATION_CONFIG.POP.exit}
-                                    >
-                                        {item.value}
-                                    </MotionWrapper>
-                                );
-                            }
-
-                            if (isPeeking) {
-                                return (
-                                    <MotionWrapper
-                                        key={item.id}
-                                        item={item}
-                                        index={index}
-                                        stackLength={visibleStack.length}
-                                        animation={ANIMATION_CONFIG.PEEK}
-                                        config={STACK_CONFIG}
-                                    >
-                                        {item.value}
-                                    </MotionWrapper>
-                                );
-                            }
-
-                            return (
-                                <MotionWrapper
-                                    key={item.id}
-                                    item={item}
-                                    index={index}
-                                    stackLength={visibleStack.length}
-                                    animation={{ ...ANIMATION_CONFIG.DEFAULT, borderColor }}
-                                    config={STACK_CONFIG}
-                                >
-                                    {item.id === recentlyPushedId ? item.value : "..."}
-                                </MotionWrapper>
-                            );
-                        })}
-                    </AnimatePresence>
-                </div>
-            </div>
+            {stackVisualization}
         </div>
     );
 }

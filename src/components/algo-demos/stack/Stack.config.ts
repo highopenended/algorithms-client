@@ -97,7 +97,7 @@ export const ANIMATION_CONFIG = {
         },
     },
     PEEK: {
-        baseDuration: 1,
+        baseDuration: 0.5,
         scale: 1.1,
         y: "-0.25rem",
         x: "1.75rem",
