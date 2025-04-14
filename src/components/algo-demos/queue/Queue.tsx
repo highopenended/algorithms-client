@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AlgoComponentProps } from "../../../types/algo.types";
-import MotionWrapper from "./MotionWrapper.tsx";
+import MotionWrapper from "./Queue.MotionWrapper.tsx";
+import Controls from "./Queue.Controls.tsx";
 
 interface QueueItem {
     id: number;
@@ -369,59 +370,33 @@ export function Queue({ screenHeight }: AlgoComponentProps) {
         );
     };
 
+    const handleInputChange = (value: string) => {
+        if (value.length === 30 && inputValue.length < 30) {
+            setIsInputShaking(true);
+            setTimeout(() => setIsInputShaking(false), 300);
+        }
+        setInputValue(value);
+    };
+
+    const handleInputKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter' && !isButtonDisabled("Enqueue")) {
+            handleEnqueue();
+        }
+    };
+
     return (
         <div className="p-6 flex flex-col items-center" style={{ height: screenHeight, maxHeight: screenHeight }}>
-            <div className="flex flex-col gap-4 mb-6 items-center w-full max-w-lg">
-                <motion.input
-                    ref={inputRef}
-                    type="text"
-                    value={inputValue}
-                    maxLength={30}
-                    animate={isInputShaking ? {
-                        x: [0, -5, 5, -5, 5, 0],
-                        transition: { duration: 0.3 }
-                    } : {}}
-                    onChange={(e) => {
-                        const newValue = e.target.value;
-                        if (newValue.length === 30 && inputValue.length < 30) {
-                            setIsInputShaking(true);
-                            setTimeout(() => setIsInputShaking(false), 300);
-                        }
-                        setInputValue(newValue);
-                    }}
-                    onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !isButtonDisabled("Enqueue")) {
-                            handleEnqueue();
-                        }
-                    }}
-                    disabled={isAnimatingEnqueue}
-                    className="px-4 py-2 border rounded shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:bg-gray-100 text-center w-full"
-                    placeholder="Enter value..."
-                />
-                <div className="flex justify-center gap-2 w-full">
-                    <button
-                        onClick={handleEnqueue}
-                        disabled={isButtonDisabled("Enqueue")}
-                        className="px-4 py-2 bg-green-500 text-white rounded shadow hover:bg-green-600 transition-colors disabled:opacity-50 flex-1 min-w-[5rem]"
-                    >
-                        Enqueue
-                    </button>
-                    <button
-                        onClick={handleDequeue}
-                        disabled={isButtonDisabled("Dequeue")}
-                        className="px-4 py-2 bg-red-500 text-white rounded shadow hover:bg-red-600 transition-colors disabled:opacity-50 flex-1 min-w-[5rem]"
-                    >
-                        Dequeue
-                    </button>
-                    <button
-                        onClick={handlePeek}
-                        disabled={isButtonDisabled("Peek")}
-                        className="px-4 py-2 bg-blue-500 text-white rounded shadow hover:bg-blue-600 transition-colors disabled:opacity-50 flex-1 min-w-[5rem]"
-                    >
-                        Peek
-                    </button>
-                </div>
-            </div>
+            <Controls
+                inputValue={inputValue}
+                isInputShaking={isInputShaking}
+                isAnimatingEnqueue={isAnimatingEnqueue}
+                onInputChange={handleInputChange}
+                onInputKeyDown={handleInputKeyDown}
+                onEnqueue={handleEnqueue}
+                onDequeue={handleDequeue}
+                onPeek={handlePeek}
+                isButtonDisabled={isButtonDisabled}
+            />
             <div className="flex flex-col items-center gap-2 mb-4">
                 <div className="flex items-center justify-center text-sm whitespace-nowrap">
                     <span className="w-[120px] text-right">
