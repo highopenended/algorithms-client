@@ -11,6 +11,7 @@ interface ControlsProps {
     onPop: () => void;
     onPeek: () => void;
     isButtonDisabled: (action: "Push" | "Pop" | "Peek") => boolean;
+    inputRef: React.RefObject<HTMLInputElement | null>;
 }
 
 /**
@@ -26,11 +27,13 @@ export function Controls({
     onPush,
     onPop,
     onPeek,
-    isButtonDisabled
+    isButtonDisabled,
+    inputRef
 }: ControlsProps) {
     return (
         <div className="flex flex-col gap-4 mb-6 items-center w-full max-w-lg">
             <motion.input
+                ref={inputRef}
                 type="text"
                 value={inputValue}
                 maxLength={30}

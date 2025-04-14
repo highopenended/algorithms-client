@@ -132,6 +132,7 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
                 setIsAnimatingPush(false);
                 setPushingValue("");
                 setRecentlyPushedId(newItem.id);
+                inputRef.current?.focus();
                 setTimeout(() => {
                     setRecentlyPushedId(null);
                 }, 500);
@@ -142,6 +143,7 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
                 setNextId(nextId + 1);
                 setIsAnimatingPush(false);
                 setPushingValue("");
+                inputRef.current?.focus();
             }, ANIMATION_CONFIG.PUSH.baseDuration * 1000);
         }
     };
@@ -177,6 +179,7 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
                 setVisibleStack(newVisibleStack);
                 setIsAnimatingPop(false);
                 setPoppingItem(null);
+                inputRef.current?.focus();
             }, ANIMATION_CONFIG.POP.baseDuration * 1000);
         }
     };
@@ -186,6 +189,7 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
         setIsAnimatingPeek(true);
         setTimeout(() => {
             setIsAnimatingPeek(false);
+            inputRef.current?.focus();
         }, ANIMATION_CONFIG.PEEK.baseDuration * 1000);
     };
 
@@ -227,6 +231,7 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
         }
 
         setNextId(nextId + 5);
+        inputRef.current?.focus();
     };
 
     const isButtonDisabled = (action: "Push" | "Pop" | "Peek" | "Reset" | "AddRandom") => {
@@ -283,6 +288,7 @@ export function Stack({ screenHeight }: AlgoComponentProps) {
                 onPop={handlePop}
                 onPeek={handlePeek}
                 isButtonDisabled={isButtonDisabled}
+                inputRef={inputRef}
             />
             <div className="flex flex-col items-center gap-2 mb-4">
                 <div className="flex items-center justify-center text-sm whitespace-nowrap">
