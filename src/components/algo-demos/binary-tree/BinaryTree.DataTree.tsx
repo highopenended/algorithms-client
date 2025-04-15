@@ -60,11 +60,11 @@ export function DataTree({ mainArr, selectedArrIndex, onNodeClick }: DataTreePro
     const treeData = mainArr[0] ? nodeToTreeData(mainArr[0], 0, selectedArrIndex) : null;
 
     if (!treeData) {
-        return <div className="w-full h-[600px] flex items-center justify-center">No data to display</div>;
+        return <div className="w-full h-full flex items-center justify-center">No data to display</div>;
     }
 
     return (
-        <div className="w-full h-[600px]">
+        <div className="w-full h-full border-2 border-gray-200 rounded-lg p-4">
             <Tree 
                 data={treeData}
                 orientation="vertical"
@@ -75,7 +75,7 @@ export function DataTree({ mainArr, selectedArrIndex, onNodeClick }: DataTreePro
                 renderCustomNodeElement={({ nodeDatum, toggleNode }) => (
                     <g onClick={() => onNodeClick(nodeDatum.attributes?.index as number)}>
                         <circle
-                            r={20}
+                            r={25}
                             fill={
                                 nodeDatum.attributes?.isGhost 
                                     ? '#F3F4F6' 
@@ -94,7 +94,9 @@ export function DataTree({ mainArr, selectedArrIndex, onNodeClick }: DataTreePro
                             y={0}
                             textAnchor="middle"
                             style={{
-                                fontSize: '12px',
+                                fontFamily: 'Roboto, sans-serif',
+                                fontSize: '14px',
+                                fontWeight: 300,
                                 fill: nodeDatum.attributes?.isGhost ? '#6B7280' : '#FFFFFF',
                                 cursor: 'pointer'
                             }}
